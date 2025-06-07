@@ -471,15 +471,11 @@
             const deltaY = pos.y - mouse.lastY;            // Camera rotation (right mouse button)
             if (isRotating) {
                 mouse.isDragging = true;
-                
-                if (camera.mode === 'sketch') {
-                    // In sketch mode, any right-drag motion switches to modeling mode
-                    const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    if (totalMovement > 3) { // Lower threshold for easier switching
-                        console.log('🖱️ RIGHT-DRAG DETECTED - SWITCHING TO 3D MODE!');
-                        switchToModelingMode();
-                    }
-                }                // Apply FPS-style rotation in modeling mode
+                  if (camera.mode === 'sketch') {
+                    // In sketch mode, right-click immediately switches to modeling mode
+                    console.log('🖱️ RIGHT-DRAG DETECTED - SWITCHING TO 3D MODE!');
+                    switchToModelingMode();
+                }// Apply FPS-style rotation in modeling mode
                 if (camera.mode === 'modeling') {
                     // COMPLETELY REWRITTEN FPS MOUSE CONTROLS
                       // Standard FPS controls: 
@@ -562,16 +558,8 @@
             if (mouse.button === 0 && isDrawing) {
                 stopDrawing(e);
             }
-            
-            // If we were rotating and we're in modeling mode, check if we should return to sketch
-            if (e.button === 2 && camera.mode === 'modeling' && mouse.isDragging) {
-                // Double-click right mouse to return to sketch mode
-                // Or check for minimal rotation to auto-return
-                const rotationMagnitude = Math.sqrt(camera.rotation.x * camera.rotation.x + camera.rotation.y * camera.rotation.y);
-                if (rotationMagnitude < 0.1) { // Very small rotation means user wants to go back
-                    switchToSketchMode();
-                }
-            }
+              // Mode switching is now controlled only by Space key or explicit user action
+            // No automatic return to sketch mode based on movement
             
             mouse.isDown = false;
             isRotating = false;
