@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Projection Debug</title>
+</head>
+<body>
+    <h1>Projection Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        const camera = {
+            position: { x: 0, y: 200, z: 400 },
+            rotation: { x: -0.40, y: 0.00 },
+            fov: 60,
+            near: 1
+        };
+        
+        function project3D(x, y, z) {
+            const dx = x - camera.position.x;
+            const dy = y - camera.position.y;
+            const dz = z - camera.position.z;
+            
+            const cos_pitch = Math.cos(camera.rotation.x);
+            const sin_pitch = Math.sin(camera.rotation.x);
+            const cos_yaw = Math.cos(camera.rotation.y);
+            const sin_yaw = Math.sin(camera.rotation.y);
+            
+            const x1 = dx * cos_yaw - dz * sin_yaw;
+            const z1 = dx * sin_yaw + dz * cos_yaw;
+            
+            const y2 = dy * cos_pitch - z1 * sin_pitch;
+            const z2 = dy * sin_pitch + z1 * cos_pitch;
+            
+            console.log(`Point (${x},${y},${z}) -> dx=${dx}, dy=${dy}, dz=${dz} -> z2=${z2}`);
+            
+            if (z2 <= camera.near) {
+                console.log(`REJECTED: z2=${z2} <= near=${camera.near}`);
+                return null;
+            }
+            
+            return { x: x1, y: y2, z: z2 };
+        }
+        
+        // Test grid points
+        const testPoints = [
+            [0, 0, 0],      // Origin
+            [100, 0, 0],    // X+
+            [-100, 0, 0],   // X-
+            [0, 0, 100],    // Z+
+            [0, 0, -100],   // Z-
+        ];
+        
+        let output = "";
+        testPoints.forEach(point => {
+            const result = project3D(point[0], point[1], point[2]);
+            output += `Point [${point.join(', ')}] -> ${result ? 'VISIBLE' : 'HIDDEN'}<br>`;
+        });
+        
+        document.getElementById('output').innerHTML = output;
+    </script>
+</body>
+</html>

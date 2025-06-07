@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CutList - Standalone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+        
+        .header {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .button {
+            background: linear-gradient(45deg, #CD853F, #DEB887);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            color: #2F1B14;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .drawing-world {
+            display: none;
+            margin-top: 2rem;
+        }
+        
+        .toolbar {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+          .canvas-container {
+            position: relative;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 600px;
+        }
+        
+        #drawingCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            display: block;
+        }
+        
+        .status {
+            background: rgba(0,0,0,0.3);
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        
+        .tool.active {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #2F1B14;
+        }
+        
+        .coords {
+            font-family: monospace;
+            background: rgba(0,0,0,0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🪵 CutList - Woodworking CAD Tool</h1>
+        <p>Standalone Version - No Server Required</p>
+    </div>
+    
+    <div class="container">
+        <div id="dashboard">
+            <h2>Welcome to CutList</h2>
+            <p>Design your woodworking projects with precision and ease.</p>
+            <br>
+            <button class="button" onclick="enterDrawingWorld()">🎨 Enter Drawing World</button>
+            <button class="button" onclick="showMaterials()">📋 Materials Database</button>
+            <button class="button" onclick="showProjects()">💾 My Projects</button>
+        </div>
+        
+        <div id="drawingWorld" class="drawing-world">            <div class="toolbar">
+                <button class="button tool" id="selectTool" onclick="setTool('select')">👆 Select</button>
+                <button class="button tool" id="lineTool" onclick="setTool('line')">📏 Line</button>
+                <button class="button tool" id="rectangleTool" onclick="setTool('rectangle')">⬜ Rectangle</button>
+                <button class="button tool" id="circleTool" onclick="setTool('circle')">⭕ Circle</button>
+                <button class="button" onclick="toggleGrid()">🔲 Grid</button>
+                <button class="button" onclick="addSampleObjects()">🎭 Demo</button>
+                <button class="button" onclick="clearCanvas()">🗑️ Clear</button>
+                <button class="button" onclick="resetCamera()">🎯 Reset View</button>
+                <button class="button" onclick="exitDrawingWorld()">🏠 Back to Dashboard</button>
+            </div>
+              <div class="canvas-container">
+                <canvas id="drawingCanvas"></canvas>
+            </div>            <div class="status">
+                <div>
+                    <strong>Tool:</strong> <span id="currentTool">Select - Sketch Mode (Orthographic)</span>
+                </div>
+                <div class="coords">
+                    <strong>Mouse:</strong> <span id="mouseCoords">0, 0</span>
+                </div>
+                <div>
+                    <strong>Zoom:</strong> <span id="zoomLevel">100%</span>
+                </div>
+                <div>
+                    <strong>Objects:</strong> <span id="objectCount">0</span>
+                </div>                <div style="font-size: 0.8em; color: #ccc; margin-top: 5px;">
+                    <strong>Controls:</strong> Right-drag: 3D Mode | Space: Toggle Mode | Middle-drag: Pan | Wheel: Zoom | Home: Reset<br>
+                    <strong>Keys:</strong> S=Select, L=Line, R=Rectangle, C=Circle, G=Grid, Space=Mode Toggle, Esc=Cancel, Del=Delete
+                </div>
+            </div>
+        </div>
+        
+        <div id="materialsView" style="display: none;">
+            <h2>📋 Materials Database</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                    <h3>🌳 Hardwoods</h3>
+                    <ul>
+                        <li>Oak - Strong, durable</li>
+                        <li>Maple - Fine grain</li>
+                        <li>Cherry - Beautiful finish</li>
+                        <li>Walnut - Premium wood</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                    <h3>🌲 Softwoods</h3>
+                    <ul>
+                        <li>Pine - Easy to work</li>
+                        <li>Cedar - Weather resistant</li>
+                        <li>Fir - Construction grade</li>
+                        <li>Spruce - Light weight</li>
+                    </ul>
+                </div>
+            </div>
+            <button class="button" onclick="showDashboard()" style="margin-top: 1rem;">🏠 Back to Dashboard</button>
+        </div>
+        
+        <div id="projectsView" style="display: none;">
+            <h2>💾 My Projects</h2>
+            <p>Project management functionality coming soon!</p>
+            <button class="button" onclick="showDashboard()" style="margin-top: 1rem;">🏠 Back to Dashboard</button>
+        </div>
+    </div>    <script>
+        // Global variables
+        let canvas, ctx;
+        let currentTool = 'select';
+        let isDrawing = false;
+        let startX, startY;
+        let objects = [];
+        let selectedObject = null;        // Camera system
+        let camera = {
+            x: 0,
+            y: 0,
+            zoom: 1,
+            rotation: { x: 0, y: 0 }, // Camera rotation (x = pitch, y = yaw)
+            mode: 'sketch', // 'sketch' or 'modeling'
+            isOrtho: true,
+            target: { x: 0, y: 0, z: 0 }
+        };
+        
+        // Mouse and interaction state
+        let mouse = {
+            x: 0, y: 0,
+            lastX: 0, lastY: 0,
+            isDown: false,
+            button: -1,
+            isDragging: false
+        };
+        
+        let keys = {};
+        
+        // Camera controls
+        let isRotating = false;
+        let isPanning = false;
+        let rotationSensitivity = 0.01;
+        let zoomSensitivity = 0.1;
+        
+        // Grid control
+        let showGrid = true;
+        
+        // Initialize when page loads
+        window.onload = function() {
+            canvas = document.getElementById('drawingCanvas');
+            ctx = canvas.getContext('2d');
+              // Set canvas size to match display size
+            resizeCanvas();
+            
+            // Enhanced mouse event listeners
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('wheel', handleWheel, { passive: false });
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            
+            // Keyboard listeners
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            
+            // Resize listener
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Set default tool
+            setTool('select');
+        };
+        
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            redrawCanvas();
+        }
+        
+        function enterDrawingWorld() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('drawingWorld').style.display = 'block';
+            document.getElementById('materialsView').style.display = 'none';
+            document.getElementById('projectsView').style.display = 'none';
+            // Ensure canvas is properly sized when entering drawing world
+            setTimeout(resizeCanvas, 100);
+        }
+        
+        function exitDrawingWorld() { showDashboard(); }
+        
+        function showDashboard() {
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('drawingWorld').style.display = 'none';
+            document.getElementById('materialsView').style.display = 'none';
+            document.getElementById('projectsView').style.display = 'none';
+        }
+        
+        function showMaterials() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('drawingWorld').style.display = 'none';
+            document.getElementById('materialsView').style.display = 'block';
+            document.getElementById('projectsView').style.display = 'none';
+        }
+        
+        function showProjects() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('drawingWorld').style.display = 'none';
+            document.getElementById('materialsView').style.display = 'none';
+            document.getElementById('projectsView').style.display = 'block';
+        }
+          function setTool(tool) {
+            currentTool = tool;
+            updateModeDisplay();
+            
+            // Update tool buttons
+            document.querySelectorAll('.tool').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tool + 'Tool').classList.add('active');
+            
+            // Change cursor
+            canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+        }        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+          function getWorldCoords(screenX, screenY) {
+            // Convert screen coordinates to world coordinates accounting for camera transform
+            // Start by translating to center-origin coordinates
+            let worldX = screenX - canvas.width / 2;
+            let worldY = screenY - canvas.height / 2;
+            
+            // Reverse zoom transformation
+            worldX /= camera.zoom;
+            worldY /= camera.zoom;
+            
+            // Reverse camera translation
+            worldX += camera.x;
+            worldY += camera.y;
+            
+            return { x: worldX, y: worldY };
+        }
+        
+        function getScreenCoords(worldX, worldY) {
+            // Convert world coordinates to screen coordinates
+            let screenX = worldX - camera.x;
+            let screenY = worldY - camera.y;
+            
+            // Apply zoom
+            screenX *= camera.zoom;
+            screenY *= camera.zoom;
+            
+            // Translate to screen coordinates
+            screenX += canvas.width / 2;
+            screenY += canvas.height / 2;
+            
+            return { x: screenX, y: screenY };
+        }
+        
+        // Enhanced mouse handling for camera controls
+        function handleMouseDown(e) {
+            const pos = getMousePos(e);
+            mouse.x = pos.x;
+            mouse.y = pos.y;
+            mouse.lastX = pos.x;
+            mouse.lastY = pos.y;
+            mouse.isDown = true;
+            mouse.button = e.button;
+            mouse.isDragging = false;
+            
+            // Right mouse button or middle mouse = camera control
+            if (e.button === 2 || e.button === 1) {
+                isRotating = e.button === 2; // Right mouse for rotation
+                isPanning = e.button === 1;  // Middle mouse for panning
+                e.preventDefault();
+                return;
+            }
+              // Left mouse button = drawing (if in sketch mode and drawing tool selected)
+            if (e.button === 0 && camera.mode === 'sketch') {
+                if (currentTool === 'select') {
+                    selectObjectAt(pos.x, pos.y);
+                } else {
+                    startDrawing(e);
+                }
+            }else if (e.button === 0 && currentTool === 'select') {
+                // Object selection
+                selectObjectAt(pos.x, pos.y);
+            }
+        }
+        
+        function handleMouseMove(e) {
+            const pos = getMousePos(e);
+            updateMouseCoords(e);
+            
+            if (!mouse.isDown) {
+                mouse.x = pos.x;
+                mouse.y = pos.y;
+                return;
+            }
+            
+            const deltaX = pos.x - mouse.lastX;
+            const deltaY = pos.y - mouse.lastY;            // Camera rotation (right mouse button)
+            if (isRotating) {
+                mouse.isDragging = true;
+                
+                if (camera.mode === 'sketch') {
+                    // In sketch mode, any right-drag motion switches to modeling mode
+                    const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (totalMovement > 3) { // Lower threshold for easier switching
+                        switchToModelingMode();
+                    }
+                }
+                
+                // Apply rotation in modeling mode
+                if (camera.mode === 'modeling') {
+                    // Update camera rotation
+                    camera.rotation.y += deltaX * rotationSensitivity;
+                    camera.rotation.x += deltaY * rotationSensitivity;
+                    
+                    // Clamp rotation to prevent flipping
+                    camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
+                }
+                
+                redrawCanvas();
+            }
+            // Camera panning (middle mouse button)
+            else if (isPanning) {
+                mouse.isDragging = true;
+                camera.x -= deltaX / camera.zoom;
+                camera.y -= deltaY / camera.zoom;
+                redrawCanvas();
+            }
+            // Drawing (left mouse button in sketch mode)
+            else if (mouse.button === 0 && camera.mode === 'sketch' && isDrawing) {
+                draw(e);
+            }
+            
+            mouse.lastX = pos.x;
+            mouse.lastY = pos.y;
+        }
+          function handleMouseUp(e) {
+            if (mouse.button === 0 && isDrawing) {
+                stopDrawing(e);
+            }
+            
+            // If we were rotating and we're in modeling mode, check if we should return to sketch
+            if (e.button === 2 && camera.mode === 'modeling' && mouse.isDragging) {
+                // Double-click right mouse to return to sketch mode
+                // Or check for minimal rotation to auto-return
+                const rotationMagnitude = Math.sqrt(camera.rotation.x * camera.rotation.x + camera.rotation.y * camera.rotation.y);
+                if (rotationMagnitude < 0.1) { // Very small rotation means user wants to go back
+                    switchToSketchMode();
+                }
+            }
+            
+            mouse.isDown = false;
+            isRotating = false;
+            isPanning = false;
+            mouse.isDragging = false;
+        }
+        
+        // Wheel zoom handling
+        function handleWheel(e) {
+            e.preventDefault();
+            
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const newZoom = camera.zoom * zoomFactor;
+            
+            // Clamp zoom between reasonable limits
+            camera.zoom = Math.max(0.1, Math.min(10, newZoom));
+            
+            // Update zoom display
+            document.getElementById('zoomLevel').textContent = Math.round(camera.zoom * 100) + '%';
+            
+            redrawCanvas();
+        }
+          // Reset camera to default view
+        function resetCamera() {
+            camera.x = 0;
+            camera.y = 0;
+            camera.zoom = 1;
+            camera.rotation.x = 0;
+            camera.rotation.y = 0;
+            switchToSketchMode(); // Always return to sketch mode on reset
+            document.getElementById('zoomLevel').textContent = '100%';
+            redrawCanvas();
+        }
+
+        // Keyboard handling
+        function handleKeyDown(e) {
+            keys[e.key.toLowerCase()] = true;
+            
+            // Camera controls with keyboard
+            if (e.key === ' ') {
+                e.preventDefault(); // Prevent page scroll
+                // Space key toggles between sketch and modeling mode
+                if (camera.mode === 'sketch') {
+                    switchToModelingMode();
+                } else {
+                    switchToSketchMode();
+                }
+            }
+            
+            // Reset camera view
+            if (e.key === 'Home' || (e.ctrlKey && e.key === '0')) {
+                e.preventDefault();
+                resetCamera();
+            }
+        }
+        
+        function handleKeyUp(e) {
+            keys[e.key.toLowerCase()] = false;
+        }
+        
+        // Mode switching functions
+        function switchToModelingMode() {
+            if (camera.mode === 'modeling') return;
+            camera.mode = 'modeling';
+            camera.isOrtho = false;
+            updateModeDisplay();
+        }
+        
+        function switchToSketchMode() {
+            if (camera.mode === 'sketch') return;
+            camera.mode = 'sketch';
+            camera.isOrtho = true;
+            // Reset rotation for orthographic view
+            camera.rotation.x = 0;
+            camera.rotation.y = 0;
+            updateModeDisplay();
+        }        function updateModeDisplay() {
+            const modeText = camera.mode === 'sketch' ? 'Sketch Mode (2D Orthographic)' : 'Modeling Mode (3D Perspective)';
+            const rotationHint = camera.mode === 'sketch' ? ' - Right-drag to enter 3D mode' : ' - Space/Home to return to 2D';
+            document.getElementById('currentTool').textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} - ${modeText}${rotationHint}`;
+        }
+          function updateMouseCoords(e) {
+            const pos = getMousePos(e);
+            const worldPos = getWorldCoords(pos.x, pos.y);
+            document.getElementById('mouseCoords').textContent = `${Math.round(worldPos.x)}, ${Math.round(worldPos.y)}`;
+        }
+          function startDrawing(e) {
+            if (currentTool === 'select') return;
+            
+            const pos = getMousePos(e);
+            const worldPos = getWorldCoords(pos.x, pos.y);
+            startX = worldPos.x;
+            startY = worldPos.y;
+            isDrawing = true;
+        }
+        
+        function draw(e) {
+            if (!isDrawing || currentTool === 'select') return;
+            
+            const pos = getMousePos(e);
+            const worldPos = getWorldCoords(pos.x, pos.y);
+            
+            // Clear and redraw everything
+            redrawCanvas();
+            
+            // Draw preview of current shape in world coordinates
+            ctx.save();
+            applyCameraTransform();
+            
+            ctx.strokeStyle = '#FF6B6B';
+            ctx.lineWidth = 2 / camera.zoom; // Keep line thickness constant
+            ctx.beginPath();
+            
+            switch(currentTool) {
+                case 'line':
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(worldPos.x, worldPos.y);
+                    break;
+                case 'rectangle':
+                    ctx.rect(startX, startY, worldPos.x - startX, worldPos.y - startY);
+                    break;
+                case 'circle':
+                    const radius = Math.sqrt(Math.pow(worldPos.x - startX, 2) + Math.pow(worldPos.y - startY, 2));
+                    ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+                    break;
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        function stopDrawing(e) {
+            if (!isDrawing || currentTool === 'select') return;
+            
+            const pos = getMousePos(e);
+            const worldPos = getWorldCoords(pos.x, pos.y);
+            
+            // Create the object in world coordinates
+            const obj = {
+                type: currentTool,
+                startX: startX,
+                startY: startY,
+                endX: worldPos.x,
+                endY: worldPos.y,
+                id: Date.now()
+            };
+            
+            objects.push(obj);
+            isDrawing = false;
+            
+            redrawCanvas();
+            updateObjectCount();
+        }
+          function redrawCanvas() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Save context state
+            ctx.save();
+            
+            // Apply camera transformations
+            applyCameraTransform();
+            
+            // Draw grid
+            if (showGrid) {
+                drawGrid();
+            }
+              // Draw all objects
+            objects.forEach(obj => {
+                ctx.strokeStyle = obj === selectedObject ? '#FFD700' : '#333';
+                ctx.lineWidth = (obj === selectedObject ? 3 : 2) / camera.zoom; // Keep line thickness constant
+                ctx.beginPath();
+                
+                switch(obj.type) {
+                    case 'line':
+                        ctx.moveTo(obj.startX, obj.startY);
+                        ctx.lineTo(obj.endX, obj.endY);
+                        break;
+                    case 'rectangle':
+                        ctx.rect(obj.startX, obj.startY, obj.endX - obj.startX, obj.endY - obj.startY);
+                        break;
+                    case 'circle':
+                        const radius = Math.sqrt(Math.pow(obj.endX - obj.startX, 2) + Math.pow(obj.endY - obj.startY, 2));
+                        ctx.arc(obj.startX, obj.startY, radius, 0, 2 * Math.PI);
+                        break;
+                }
+                ctx.stroke();
+            });
+            
+            // Restore context state
+            ctx.restore();
+        }        function applyCameraTransform() {
+            // Apply transformations in correct order for camera system
+            
+            // First, translate to canvas center for zoom/rotation origin
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            
+            // Apply zoom
+            ctx.scale(camera.zoom, camera.zoom);
+            
+            // Only apply rotation effects in modeling mode
+            if (camera.mode === 'modeling') {
+                // Enhanced 3D perspective effects with 2D transforms
+                const yRotationEffect = Math.sin(camera.rotation.y) * 0.6; // Increased effect
+                const xRotationEffect = Math.sin(camera.rotation.x) * 0.4; // Increased effect
+                
+                // Apply skew for Y-axis rotation simulation (stronger effect)
+                ctx.transform(1, xRotationEffect * 0.3, yRotationEffect, 1, 0, 0);
+                
+                // Scale for X-axis rotation simulation (perspective foreshortening)
+                const perspectiveScale = 1 - Math.abs(xRotationEffect) * 0.3;
+                ctx.scale(1, perspectiveScale);
+                
+                // Add slight offset for depth perception
+                const depthOffset = Math.sin(camera.rotation.y) * 10;
+                ctx.translate(depthOffset, Math.sin(camera.rotation.x) * 5);
+            }
+            // In sketch mode, ensure no rotation effects are applied
+            // (This is already handled by the if statement above, but explicit for clarity)
+            
+            // Apply camera translation (pan)
+            ctx.translate(-camera.x, -camera.y);
+        }function drawGrid() {
+            if (!showGrid) return;
+            
+            const minorGridSize = 20;
+            const majorGridSize = minorGridSize * 10; // Every 10th line is major
+            
+            // Calculate grid bounds based on current camera view
+            const viewBounds = {
+                left: -canvas.width / 2 / camera.zoom + camera.x,
+                right: canvas.width / 2 / camera.zoom + camera.x,
+                top: -canvas.height / 2 / camera.zoom + camera.y,
+                bottom: canvas.height / 2 / camera.zoom + camera.y
+            };
+            
+            // Extend bounds slightly to ensure complete coverage
+            const padding = Math.max(minorGridSize, majorGridSize);
+            viewBounds.left -= padding;
+            viewBounds.right += padding;
+            viewBounds.top -= padding;
+            viewBounds.bottom += padding;
+            
+            // Draw minor grid lines first
+            ctx.strokeStyle = '#E8E8E8';
+            ctx.lineWidth = 0.5 / camera.zoom; // Keep line thickness constant regardless of zoom
+            
+            // Minor vertical lines
+            const startX = Math.floor(viewBounds.left / minorGridSize) * minorGridSize;
+            const endX = Math.ceil(viewBounds.right / minorGridSize) * minorGridSize;
+            
+            for (let x = startX; x <= endX; x += minorGridSize) {
+                if (x % majorGridSize !== 0) { // Skip positions where major lines will be
+                    ctx.beginPath();
+                    ctx.moveTo(x, viewBounds.top);
+                    ctx.lineTo(x, viewBounds.bottom);
+                    ctx.stroke();
+                }
+            }
+            
+            // Minor horizontal lines
+            const startY = Math.floor(viewBounds.top / minorGridSize) * minorGridSize;
+            const endY = Math.ceil(viewBounds.bottom / minorGridSize) * minorGridSize;
+            
+            for (let y = startY; y <= endY; y += minorGridSize) {
+                if (y % majorGridSize !== 0) { // Skip positions where major lines will be
+                    ctx.beginPath();
+                    ctx.moveTo(viewBounds.left, y);
+                    ctx.lineTo(viewBounds.right, y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw major grid lines (darker and slightly thicker)
+            ctx.strokeStyle = '#D0D0D0';
+            ctx.lineWidth = 0.8 / camera.zoom; // Keep line thickness constant regardless of zoom
+            
+            // Major vertical lines
+            const majorStartX = Math.floor(viewBounds.left / majorGridSize) * majorGridSize;
+            const majorEndX = Math.ceil(viewBounds.right / majorGridSize) * majorGridSize;
+            
+            for (let x = majorStartX; x <= majorEndX; x += majorGridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, viewBounds.top);
+                ctx.lineTo(x, viewBounds.bottom);
+                ctx.stroke();
+            }
+            
+            // Major horizontal lines
+            const majorStartY = Math.floor(viewBounds.top / majorGridSize) * majorGridSize;
+            const majorEndY = Math.ceil(viewBounds.bottom / majorGridSize) * majorGridSize;
+            
+            for (let y = majorStartY; y <= majorEndY; y += majorGridSize) {
+                ctx.beginPath();
+                ctx.moveTo(viewBounds.left, y);
+                ctx.lineTo(viewBounds.right, y);
+                ctx.stroke();
+            }
+        }
+        
+        function clearCanvas() {
+            objects = [];
+            selectedObject = null;
+            redrawCanvas();
+            updateObjectCount();
+        }
+          function updateObjectCount() {
+            const count = objects.length;
+            const selectedText = selectedObject ? ` (1 selected)` : '';
+            document.getElementById('objectCount').textContent = count + selectedText;
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Prevent default behavior for our shortcuts
+            if (e.ctrlKey || e.key === 'Escape' || e.key === 'Delete' || e.key === 'Home') {
+                
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    isDrawing = false;
+                    selectedObject = null;
+                    redrawCanvas();
+                } else if (e.key === 'Delete' && selectedObject) {
+                    e.preventDefault();
+                    objects = objects.filter(obj => obj !== selectedObject);
+                    selectedObject = null;
+                    redrawCanvas();
+                    updateObjectCount();
+                } else if (e.key === 'Home' || (e.ctrlKey && e.key === '0')) {
+                    e.preventDefault();
+                    resetCamera();
+                } else if (e.ctrlKey && e.key === 'z') {
+                    e.preventDefault();
+                    // Undo functionality could be added here
+                } else if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    // Select all functionality could be added here
+                }
+                  // Tool shortcuts
+                if (!e.ctrlKey && !e.altKey) {
+                    switch(e.key.toLowerCase()) {
+                        case 's':
+                            e.preventDefault();
+                            setTool('select');
+                            break;
+                        case 'l':
+                            e.preventDefault();
+                            setTool('line');
+                            break;
+                        case 'r':
+                            e.preventDefault();
+                            setTool('rectangle');
+                            break;
+                        case 'c':
+                            e.preventDefault();
+                            setTool('circle');
+                            break;
+                        case 'g':
+                            e.preventDefault();
+                            toggleGrid();
+                            break;
+                    }
+                }
+            }
+        });
+
+        // Grid toggle functionality
+        function toggleGrid() {
+            showGrid = !showGrid;
+            redrawCanvas();
+        }
+
+        // Object selection functionality
+        function selectObjectAt(x, y) {
+            const worldPos = getWorldCoords(x, y);
+            const tolerance = 10 / camera.zoom; // Selection tolerance that scales with zoom
+            
+            // Check objects in reverse order (last drawn = topmost)
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                if (isPointNearObject(worldPos.x, worldPos.y, obj, tolerance)) {
+                    selectedObject = obj;
+                    redrawCanvas();
+                    return true;
+                }
+            }
+            
+            // No object selected
+            selectedObject = null;
+            redrawCanvas();
+            return false;
+        }
+        
+        function isPointNearObject(x, y, obj, tolerance) {
+            switch (obj.type) {
+                case 'line':
+                    return distanceToLine(x, y, obj.startX, obj.startY, obj.endX, obj.endY) <= tolerance;
+                case 'rectangle':
+                    return isPointNearRectangle(x, y, obj.startX, obj.startY, obj.endX, obj.endY, tolerance);
+                case 'circle':
+                    const centerX = obj.startX;
+                    const centerY = obj.startY;
+                    const radius = Math.sqrt(Math.pow(obj.endX - obj.startX, 2) + Math.pow(obj.endY - obj.startY, 2));
+                    const distanceToCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                    return Math.abs(distanceToCenter - radius) <= tolerance;
+            }
+            return false;
+        }
+        
+        function distanceToLine(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+            
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            
+            if (lenSq === 0) return Math.sqrt(A * A + B * B);
+            
+            let param = dot / lenSq;
+            param = Math.max(0, Math.min(1, param));
+            
+            const xx = x1 + param * C;
+            const yy = y1 + param * D;
+            
+            const dx = px - xx;
+            const dy = py - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function isPointNearRectangle(x, y, x1, y1, x2, y2, tolerance) {
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            
+            // Check if point is near any of the four edges
+            return (
+                distanceToLine(x, y, minX, minY, maxX, minY) <= tolerance || // Top edge
+                distanceToLine(x, y, maxX, minY, maxX, maxY) <= tolerance || // Right edge
+                distanceToLine(x, y, maxX, maxY, minX, maxY) <= tolerance || // Bottom edge
+                distanceToLine(x, y, minX, maxY, minX, minY) <= tolerance    // Left edge
+            );
+        }
+        
+        // Demo/Sample functionality
+        function addSampleObjects() {
+            // Clear existing objects
+            objects = [];
+            selectedObject = null;
+            
+            // Add sample objects to demonstrate functionality
+            objects.push({
+                type: 'rectangle',
+                startX: -100,
+                startY: -50,
+                endX: 100,
+                endY: 50,
+                id: Date.now() + 1
+            });
+            
+            objects.push({
+                type: 'circle',
+                startX: 150,
+                startY: 0,
+                endX: 200,
+                endY: 0,
+                id: Date.now() + 2
+            });
+            
+            objects.push({
+                type: 'line',
+                startX: -150,
+                startY: -100,
+                endX: -50,
+                endY: 100,
+                id: Date.now() + 3
+            });
+            
+            redrawCanvas();
+            updateObjectCount();
+        }
+    </script>
+</body>
+</html>

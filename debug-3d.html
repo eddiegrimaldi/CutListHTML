@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CutList 3D Debug</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .canvas-container {
+            background: white;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+        #canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .status {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 3px;
+            background: #007acc;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a99;
+        }
+        button.active {
+            background: #ff6600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CutList 3D Camera Debug</h1>
+        
+        <div class="controls">
+            <button id="drawBtn" class="active" onclick="setTool('draw')">Draw Rectangle</button>
+            <button id="modeBtn" onclick="toggleMode()">Mode: <span id="currentMode">Sketch</span></button>
+            <button onclick="resetCamera()">Reset Camera</button>
+            <button onclick="addTestRect()">Add Test Rectangle</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="status">
+            <div>Camera Mode: <span id="cameraMode">sketch</span></div>
+            <div>Camera Position: <span id="cameraPos">0, 0, 500</span></div>
+            <div>Camera Rotation: <span id="cameraRot">0, 0</span></div>
+            <div>Mouse: <span id="mousePos">0, 0</span></div>
+            <div>Objects: <span id="objectCount">0</span></div>
+            <div>Debug: <span id="debugInfo">Ready</span></div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Camera system
+        let camera = {
+            // 2D properties
+            x: 0, y: 0, zoom: 1,
+            
+            // 3D properties
+            position: { x: 0, y: 0, z: 500 },
+            rotation: { x: 0, y: 0 },
+            fov: 75,
+            near: 0.1,
+            far: 2000,
+            
+            mode: 'sketch',
+            speed: 200,
+            sensitivity: 0.003
+        };
+        
+        // Objects and state
+        let objects = [];
+        let currentTool = 'draw';
+        let isDrawing = false;
+        let startX, startY;
+        let showGrid = true;
+        
+        // Mouse tracking
+        let mouse = { x: 0, y: 0, isDown: false, button: -1 };
+        let keys = {};
+        
+        // Game loop
+        let gameLoopId = null;
+        let lastTime = 0;
+        
+        function init() {
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            
+            startGameLoop();
+            updateStatus();
+            redraw();
+        }
+        
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+            mouse.isDown = true;
+            mouse.button = e.button;
+            
+            updateDebug(`Mouse down: button ${e.button} at ${mouse.x}, ${mouse.y}`);
+            
+            if (e.button === 2) { // Right click
+                updateDebug('Right click - attempting mode switch');
+                if (camera.mode === 'sketch') {
+                    switchToModeling();
+                }
+                return;
+            }
+            
+            if (e.button === 0 && camera.mode === 'sketch' && currentTool === 'draw') {
+                startDrawing();
+            }
+        }
+        
+        function handleMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const newX = e.clientX - rect.left;
+            const newY = e.clientY - rect.top;
+            
+            if (mouse.isDown && mouse.button === 2 && camera.mode === 'modeling') {
+                // 3D camera rotation
+                const deltaX = newX - mouse.x;
+                const deltaY = newY - mouse.y;
+                
+                camera.rotation.y += deltaX * camera.sensitivity;
+                camera.rotation.x += deltaY * camera.sensitivity;
+                
+                // Clamp pitch
+                camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
+                
+                updateDebug(`3D rotation: ${camera.rotation.x.toFixed(3)}, ${camera.rotation.y.toFixed(3)}`);
+                updateStatus();
+                redraw();
+            }
+            
+            mouse.x = newX;
+            mouse.y = newY;
+            document.getElementById('mousePos').textContent = `${Math.round(mouse.x)}, ${Math.round(mouse.y)}`;
+        }
+        
+        function handleMouseUp(e) {
+            if (isDrawing) {
+                finishDrawing();
+            }
+            mouse.isDown = false;
+        }
+        
+        function handleKeyDown(e) {
+            keys[e.code] = true;
+            
+            if (e.code === 'Space') {
+                e.preventDefault();
+                toggleMode();
+            }
+            
+            // Prevent scrolling
+            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(e.code)) {
+                e.preventDefault();
+            }
+        }
+        
+        function handleKeyUp(e) {
+            keys[e.code] = false;
+        }
+        
+        function startDrawing() {
+            if (camera.mode !== 'sketch') return;
+            
+            const worldPos = screenToWorld(mouse.x, mouse.y);
+            startX = worldPos.x;
+            startY = worldPos.y;
+            isDrawing = true;
+            updateDebug(`Start drawing at world ${startX}, ${startY}`);
+        }
+        
+        function finishDrawing() {
+            if (!isDrawing) return;
+            
+            const worldPos = screenToWorld(mouse.x, mouse.y);
+            const obj = {
+                type: 'rectangle',
+                startX: startX,
+                startY: startY,
+                endX: worldPos.x,
+                endY: worldPos.y
+            };
+            
+            objects.push(obj);
+            isDrawing = false;
+            updateDebug(`Created rectangle: ${startX}, ${startY} to ${worldPos.x}, ${worldPos.y}`);
+            updateStatus();
+            redraw();
+        }
+        
+        function screenToWorld(screenX, screenY) {
+            if (camera.mode === 'sketch') {
+                // Convert screen coordinates to world coordinates in 2D mode
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                
+                return {
+                    x: (screenX - centerX) / camera.zoom + camera.x,
+                    y: (screenY - centerY) / camera.zoom + camera.y
+                };
+            } else {
+                // For 3D mode, we'd need ray casting - for now return 0,0
+                return { x: 0, y: 0 };
+            }
+        }
+        
+        function project3D(x, y, z) {
+            // Translate to camera space
+            const dx = x - camera.position.x;
+            const dy = y - camera.position.y;
+            const dz = z - camera.position.z;
+            
+            // Apply camera rotation
+            const cos_pitch = Math.cos(camera.rotation.x);
+            const sin_pitch = Math.sin(camera.rotation.x);
+            const cos_yaw = Math.cos(camera.rotation.y);
+            const sin_yaw = Math.sin(camera.rotation.y);
+            
+            // Rotate around Y-axis (yaw)
+            const x1 = dx * cos_yaw - dz * sin_yaw;
+            const z1 = dx * sin_yaw + dz * cos_yaw;
+            
+            // Rotate around X-axis (pitch)
+            const y2 = dy * cos_pitch - z1 * sin_pitch;
+            const z2 = dy * sin_pitch + z1 * cos_pitch;
+            
+            // Check if behind camera
+            if (z2 <= camera.near) {
+                return null;
+            }
+            
+            // Perspective projection
+            const fovScale = (canvas.height / 2) / Math.tan((camera.fov * Math.PI / 180) / 2);
+            const screenX = (x1 * fovScale) / z2;
+            const screenY = -(y2 * fovScale) / z2; // Flip Y
+            
+            return { 
+                x: screenX + canvas.width / 2, 
+                y: screenY + canvas.height / 2, 
+                depth: z2 
+            };
+        }
+        
+        function switchToModeling() {
+            camera.mode = 'modeling';
+            updateDebug('Switched to modeling mode');
+            updateStatus();
+            redraw();
+        }
+        
+        function switchToSketch() {
+            camera.mode = 'sketch';
+            camera.rotation.x = 0;
+            camera.rotation.y = 0;
+            updateDebug('Switched to sketch mode');
+            updateStatus();
+            redraw();
+        }
+        
+        function toggleMode() {
+            if (camera.mode === 'sketch') {
+                switchToModeling();
+            } else {
+                switchToSketch();
+            }
+        }
+        
+        function resetCamera() {
+            camera.x = 0;
+            camera.y = 0;
+            camera.zoom = 1;
+            camera.position = { x: 0, y: 0, z: 500 };
+            camera.rotation = { x: 0, y: 0 };
+            switchToSketch();
+            updateDebug('Camera reset');
+            updateStatus();
+            redraw();
+        }
+        
+        function addTestRect() {
+            objects.push({
+                type: 'rectangle',
+                startX: -100,
+                startY: -50,
+                endX: 100,
+                endY: 50
+            });
+            updateDebug('Added test rectangle');
+            updateStatus();
+            redraw();
+        }
+        
+        function updateCameraMovement(deltaTime) {
+            if (camera.mode !== 'modeling') return;
+            
+            let moved = false;
+            const speed = camera.speed * deltaTime;
+            
+            // Calculate forward/right vectors
+            const cos_yaw = Math.cos(camera.rotation.y);
+            const sin_yaw = Math.sin(camera.rotation.y);
+            const cos_pitch = Math.cos(camera.rotation.x);
+            
+            const forward = {
+                x: sin_yaw * cos_pitch,
+                y: -Math.sin(camera.rotation.x),
+                z: cos_yaw * cos_pitch
+            };
+            
+            const right = { x: cos_yaw, y: 0, z: -sin_yaw };
+            
+            // Apply movement
+            if (keys['KeyW']) {
+                camera.position.x += forward.x * speed;
+                camera.position.y += forward.y * speed;
+                camera.position.z += forward.z * speed;
+                moved = true;
+            }
+            if (keys['KeyS']) {
+                camera.position.x -= forward.x * speed;
+                camera.position.y -= forward.y * speed;
+                camera.position.z -= forward.z * speed;
+                moved = true;
+            }
+            if (keys['KeyA']) {
+                camera.position.x -= right.x * speed;
+                camera.position.z -= right.z * speed;
+                moved = true;
+            }
+            if (keys['KeyD']) {
+                camera.position.x += right.x * speed;
+                camera.position.z += right.z * speed;
+                moved = true;
+            }
+            if (keys['KeyQ']) {
+                camera.position.y += speed;
+                moved = true;
+            }
+            if (keys['KeyE']) {
+                camera.position.y -= speed;
+                moved = true;
+            }
+            
+            if (moved) {
+                updateStatus();
+                redraw();
+            }
+        }
+        
+        function startGameLoop() {
+            function gameLoop(currentTime) {
+                const deltaTime = (currentTime - lastTime) / 1000;
+                lastTime = currentTime;
+                
+                updateCameraMovement(deltaTime);
+                
+                gameLoopId = requestAnimationFrame(gameLoop);
+            }
+            
+            lastTime = performance.now();
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+        
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            if (showGrid) {
+                drawGrid();
+            }
+            
+            // Draw objects
+            if (camera.mode === 'sketch') {
+                draw2DObjects();
+            } else {
+                draw3DObjects();
+            }
+            
+            // Draw current drawing
+            if (isDrawing) {
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(startX, startY, mouse.x - startX, mouse.y - startY);
+                ctx.setLineDash([]);
+            }
+        }
+        
+        function drawGrid() {
+            const gridSize = 50;
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            
+            if (camera.mode === 'sketch') {
+                // 2D grid
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(camera.zoom, camera.zoom);
+                ctx.translate(-camera.x, -camera.y);
+                
+                for (let x = -1000; x <= 1000; x += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, -1000);
+                    ctx.lineTo(x, 1000);
+                    ctx.stroke();
+                }
+                
+                for (let y = -1000; y <= 1000; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(-1000, y);
+                    ctx.lineTo(1000, y);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            } else {
+                // 3D grid (simplified)
+                drawGrid3D();
+            }
+        }
+        
+        function drawGrid3D() {
+            const gridSize = 100;
+            const extent = 500;
+            
+            for (let x = -extent; x <= extent; x += gridSize) {
+                for (let z = -extent; z <= extent; z += gridSize) {
+                    const p1 = project3D(x, 0, z);
+                    const p2 = project3D(x + gridSize, 0, z);
+                    const p3 = project3D(x, 0, z + gridSize);
+                    
+                    if (p1 && p2) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                    
+                    if (p1 && p3) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p3.x, p3.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        function draw2DObjects() {
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-camera.x, -camera.y);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2 / camera.zoom;
+            
+            objects.forEach(obj => {
+                if (obj.type === 'rectangle') {
+                    ctx.strokeRect(obj.startX, obj.startY, 
+                                 obj.endX - obj.startX, obj.endY - obj.startY);
+                }
+            });
+            
+            ctx.restore();
+        }
+        
+        function draw3DObjects() {
+            // Draw 3D coordinate axes
+            drawAxes3D();
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            objects.forEach(obj => {
+                if (obj.type === 'rectangle') {
+                    draw3DRectangle(obj);
+                }
+            });
+        }
+        
+        function drawAxes3D() {
+            const origin = project3D(0, 0, 0);
+            const xAxis = project3D(100, 0, 0);
+            const yAxis = project3D(0, 100, 0);
+            const zAxis = project3D(0, 0, 100);
+            
+            if (origin) {
+                ctx.lineWidth = 3;
+                
+                if (xAxis) {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.moveTo(origin.x, origin.y);
+                    ctx.lineTo(xAxis.x, xAxis.y);
+                    ctx.stroke();
+                }
+                
+                if (yAxis) {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.beginPath();
+                    ctx.moveTo(origin.x, origin.y);
+                    ctx.lineTo(yAxis.x, yAxis.y);
+                    ctx.stroke();
+                }
+                
+                if (zAxis) {
+                    ctx.strokeStyle = '#0000ff';
+                    ctx.beginPath();
+                    ctx.moveTo(origin.x, origin.y);
+                    ctx.lineTo(zAxis.x, zAxis.y);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        function draw3DRectangle(obj) {
+            const height = 50;
+            
+            // Define 8 corners of a box
+            const corners = [
+                // Bottom face
+                project3D(obj.startX, obj.startY, 0),
+                project3D(obj.endX, obj.startY, 0),
+                project3D(obj.endX, obj.endY, 0),
+                project3D(obj.startX, obj.endY, 0),
+                // Top face
+                project3D(obj.startX, obj.startY, height),
+                project3D(obj.endX, obj.startY, height),
+                project3D(obj.endX, obj.endY, height),
+                project3D(obj.startX, obj.endY, height)
+            ];
+            
+            // Filter out null projections
+            const validCorners = corners.every(c => c !== null);
+            
+            if (!validCorners) {
+                updateDebug(`Rectangle not visible - some corners behind camera`);
+                return;
+            }
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            // Draw bottom face
+            ctx.beginPath();
+            ctx.moveTo(corners[0].x, corners[0].y);
+            ctx.lineTo(corners[1].x, corners[1].y);
+            ctx.lineTo(corners[2].x, corners[2].y);
+            ctx.lineTo(corners[3].x, corners[3].y);
+            ctx.closePath();
+            ctx.stroke();
+            
+            // Draw top face
+            ctx.beginPath();
+            ctx.moveTo(corners[4].x, corners[4].y);
+            ctx.lineTo(corners[5].x, corners[5].y);
+            ctx.lineTo(corners[6].x, corners[6].y);
+            ctx.lineTo(corners[7].x, corners[7].y);
+            ctx.closePath();
+            ctx.stroke();
+            
+            // Draw vertical edges
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(corners[i].x, corners[i].y);
+                ctx.lineTo(corners[i + 4].x, corners[i + 4].y);
+                ctx.stroke();
+            }
+        }
+        
+        function setTool(tool) {
+            currentTool = tool;
+            document.getElementById('drawBtn').classList.toggle('active', tool === 'draw');
+        }
+        
+        function updateStatus() {
+            document.getElementById('cameraMode').textContent = camera.mode;
+            document.getElementById('currentMode').textContent = camera.mode === 'sketch' ? 'Sketch' : 'Modeling';
+            document.getElementById('cameraPos').textContent = 
+                `${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)}`;
+            document.getElementById('cameraRot').textContent = 
+                `${(camera.rotation.x * 180 / Math.PI).toFixed(1)}°, ${(camera.rotation.y * 180 / Math.PI).toFixed(1)}°`;
+            document.getElementById('objectCount').textContent = objects.length;
+        }
+        
+        function updateDebug(message) {
+            document.getElementById('debugInfo').textContent = message;
+            console.log('DEBUG:', message);
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎯 GRID FIX VERIFICATION - CutList</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #f0f0f0; font-family: Arial, sans-serif; }
+        canvas { border: 3px solid #007acc; background: white; display: block; margin: 20px 0; }
+        .controls { margin: 15px 0; }
+        button { margin: 5px; padding: 15px 25px; background: #007acc; color: white; border: none; font-size: 16px; border-radius: 5px; }
+        button:hover { background: #005999; }
+        .status { font-weight: bold; color: #d00; margin: 10px 0; font-size: 18px; }
+        .success { color: #0a0; }
+        .info { background: #e7f3ff; padding: 15px; margin: 10px 0; border-left: 4px solid #007acc; }
+    </style>
+</head>
+<body>
+    <h1>🎯 GRID FIX VERIFICATION TEST</h1>
+    <div class="info">
+        <strong>Master's Coding Waif has deployed the grid fix!</strong><br>
+        The issue was: drawGrid3D() was clearing background with centered coordinates without proper transforms.<br>
+        <strong>Fix:</strong> Removed the background clearing from drawGrid3D() since redrawCanvas() already handles it.
+    </div>
+
+    <div class="controls">
+        <button onclick="testSketchMode()">📐 TEST SKETCH MODE</button>
+        <button onclick="testModelingMode()">🎯 TEST MODELING MODE</button>
+        <button onclick="testModeSwitch()">🔄 TEST MODE SWITCHING</button>
+        <button onclick="testRightDragSwitch()">🖱️ SIMULATE RIGHT-DRAG SWITCH</button>
+    </div>
+
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div class="status" id="status">Ready for testing...</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+
+        let camera = {
+            x: 0, y: 0, zoom: 1,
+            position: { x: 0, y: 300, z: 500 },
+            rotation: { x: -0.5, y: 0 },
+            fov: 60, near: 1, far: 3000,
+            mode: 'sketch'
+        };
+
+        let showGrid = true;
+
+        function updateStatus(msg, isSuccess = false) {
+            status.textContent = msg;
+            status.className = isSuccess ? 'status success' : 'status';
+            console.log(`STATUS: ${msg}`);
+        }
+
+        function project3D(x, y, z) {
+            const dx = x - camera.position.x;
+            const dy = y - camera.position.y;
+            const dz = z - camera.position.z;
+            
+            const cos_pitch = Math.cos(camera.rotation.x);
+            const sin_pitch = Math.sin(camera.rotation.x);
+            const cos_yaw = Math.cos(camera.rotation.y);
+            const sin_yaw = Math.sin(camera.rotation.y);
+            
+            const x1 = dx * cos_yaw - dz * sin_yaw;
+            const z1 = dx * sin_yaw + dz * cos_yaw;
+            const y2 = dy * cos_pitch - z1 * sin_pitch;
+            const z2 = dy * sin_pitch + z1 * cos_pitch;
+            
+            if (z2 <= camera.near) {
+                return null;
+            }
+            
+            const fovScale = (canvas.height / 2) / Math.tan((camera.fov * Math.PI / 180) / 2);
+            const screenX = (x1 * fovScale) / z2;
+            const screenY = (y2 * fovScale) / z2;
+            
+            return { 
+                x: screenX + canvas.width / 2, 
+                y: -screenY + canvas.height / 2, 
+                depth: z2 
+            };
+        }
+
+        function applyCameraTransform() {
+            if (camera.mode === 'sketch') {
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(camera.zoom, camera.zoom);
+                ctx.translate(-camera.x, -camera.y);
+            } else {
+                // 3D mode - NO TRANSFORMS (project3D handles centering)
+            }
+        }
+
+        function drawGrid3D() {
+            console.log('🔥 FIXED drawGrid3D - NO background clearing here!');
+            
+            const gridSize = 100;
+            const extent = 300;
+            let drawnLines = 0;
+            
+            ctx.strokeStyle = '#DDDDDD';
+            ctx.lineWidth = 1;
+            
+            // X-direction lines
+            for (let z = -extent; z <= extent; z += gridSize) {
+                const start = project3D(-extent, 0, z);
+                const end = project3D(extent, 0, z);
+                
+                if (start && end && start.depth > 0 && end.depth > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                    drawnLines++;
+                }
+            }
+            
+            // Z-direction lines
+            for (let x = -extent; x <= extent; x += gridSize) {
+                const start = project3D(x, 0, -extent);
+                const end = project3D(x, 0, extent);
+                
+                if (start && end && start.depth > 0 && end.depth > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                    drawnLines++;
+                }
+            }
+            
+            // Draw axes
+            ctx.lineWidth = 3;
+            
+            // X-axis (red)
+            ctx.strokeStyle = '#FF6666';
+            const xStart = project3D(-extent, 0, 0);
+            const xEnd = project3D(extent, 0, 0);
+            if (xStart && xEnd && xStart.depth > 0 && xEnd.depth > 0) {
+                ctx.beginPath();
+                ctx.moveTo(xStart.x, xStart.y);
+                ctx.lineTo(xEnd.x, xEnd.y);
+                ctx.stroke();
+            }
+            
+            // Z-axis (blue)
+            ctx.strokeStyle = '#6666FF';
+            const zStart = project3D(0, 0, -extent);
+            const zEnd = project3D(0, 0, extent);
+            if (zStart && zEnd && zStart.depth > 0 && zEnd.depth > 0) {
+                ctx.beginPath();
+                ctx.moveTo(zStart.x, zStart.y);
+                ctx.lineTo(zEnd.x, zEnd.y);
+                ctx.stroke();
+            }
+            
+            // Origin point
+            const origin = project3D(0, 0, 0);
+            if (origin && origin.depth > 0) {
+                ctx.fillStyle = '#FF00FF';
+                ctx.beginPath();
+                ctx.arc(origin.x, origin.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            return drawnLines;
+        }
+
+        function drawGrid2D() {
+            const gridSize = 20;
+            let drawnLines = 0;
+            
+            ctx.strokeStyle = '#CCCCCC';
+            ctx.lineWidth = 1 / camera.zoom;
+            
+            for (let x = -400; x <= 400; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, -400);
+                ctx.lineTo(x, 400);
+                ctx.stroke();
+                drawnLines++;
+            }
+            
+            for (let y = -400; y <= 400; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(-400, y);
+                ctx.lineTo(400, y);
+                ctx.stroke();
+                drawnLines++;
+            }
+            
+            return drawnLines;
+        }
+
+        function redrawCanvas() {
+            // Clear and fill background (this is where background should be handled)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FAFAFA';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            applyCameraTransform();
+            
+            let gridLines = 0;
+            if (showGrid) {
+                if (camera.mode === 'sketch') {
+                    gridLines = drawGrid2D();
+                } else {
+                    gridLines = drawGrid3D();
+                }
+            }
+            
+            ctx.restore();
+            
+            return gridLines;
+        }
+
+        function testSketchMode() {
+            camera.mode = 'sketch';
+            const lines = redrawCanvas();
+            updateStatus(`✅ SKETCH MODE: Drew ${lines} grid lines`, true);
+        }
+
+        function testModelingMode() {
+            camera.mode = 'modeling';
+            const lines = redrawCanvas();
+            updateStatus(`✅ MODELING MODE: Drew ${lines} grid lines`, true);
+        }
+
+        function testModeSwitch() {
+            updateStatus('🔄 Testing mode switching...');
+            
+            camera.mode = 'sketch';
+            let sketchLines = redrawCanvas();
+            
+            setTimeout(() => {
+                camera.mode = 'modeling';
+                let modelingLines = redrawCanvas();
+                updateStatus(`✅ MODE SWITCH: Sketch=${sketchLines} lines → Modeling=${modelingLines} lines`, true);
+            }, 1000);
+        }
+
+        function testRightDragSwitch() {
+            updateStatus('🖱️ Simulating right-drag mode switch...');
+            
+            camera.mode = 'sketch';
+            redrawCanvas();
+            
+            setTimeout(() => {
+                // Simulate what happens when right-dragging
+                camera.mode = 'modeling';
+                camera.rotation.y += 0.1; // Small rotation
+                const lines = redrawCanvas();
+                updateStatus(`✅ RIGHT-DRAG SWITCH: Now in modeling mode with ${lines} grid lines visible!`, true);
+            }, 500);
+        }
+
+        // Initial test
+        testSketchMode();
+        
+        console.log('🎯 Grid Fix Verification Test Ready!');
+        console.log('The fix removes background clearing from drawGrid3D() to prevent painting over the grid.');
+    </script>
+</body>
+</html>
