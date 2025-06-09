@@ -1236,58 +1236,81 @@
             ctx.stroke();
             return true;
         }        function drawGrid3D() {
-            // MASSIVE FINITE GRID - 40km x 40km for vast coverage at all zoom levels
-            const gridSize = 100; // Grid spacing in world units  
-            const gridExtent = 20000; // Massive grid boundary (40km x 40km)
+            // RELIABLE GRID - No fancy clipping, just simple projection
+            const gridSize = 100;  // Good spacing for visibility
+            const majorGridSize = 1000; // Every 10th line is major (100 * 10 = 1000)
             
+            // LARGER EXTENT for proper grid coverage
+            const extent = 2000; // Much larger coverage area
+            
+            // Center grid around camera for best visibility
+            const centerX = Math.round(camera.position.x / gridSize) * gridSize;
+            const centerZ = Math.round(camera.position.z / gridSize) * gridSize;
+            
+            // Draw minor grid lines - SIMPLE AND RELIABLE
             ctx.strokeStyle = '#DDDDDD';
             ctx.lineWidth = 1;
             
-            // X-direction lines (parallel to X-axis)
-            for (let z = -gridExtent; z <= gridExtent; z += gridSize) {
-                drawClippedLine3D(-gridExtent, 0, z, gridExtent, 0, z);
+            // X-direction lines - using simple project3D
+            for (let z = centerZ - extent; z <= centerZ + extent; z += gridSize) {
+                if (z % majorGridSize !== 0) {
+                    const start = project3D(centerX - extent, 0, z);
+                    const end = project3D(centerX + extent, 0, z);
+                    
+                    if (start && end) {
+                        ctx.beginPath();
+                        ctx.moveTo(start.x, start.y);
+                        ctx.lineTo(end.x, end.y);
+                        ctx.stroke();
+                    }
+                }
             }
             
-            // Z-direction lines (parallel to Z-axis)  
-            for (let x = -gridExtent; x <= gridExtent; x += gridSize) {
-                drawClippedLine3D(x, 0, -gridExtent, x, 0, gridExtent);
+            // Z-direction lines - using simple project3D
+            for (let x = centerX - extent; x <= centerX + extent; x += gridSize) {
+                if (x % majorGridSize !== 0) {
+                    const start = project3D(x, 0, centerZ - extent);
+                    const end = project3D(x, 0, centerZ + extent);
+                    
+                    if (start && end) {
+                        ctx.beginPath();
+                        ctx.moveTo(start.x, start.y);
+                        ctx.lineTo(end.x, end.y);
+                        ctx.stroke();
+                    }
+                }
             }
             
-            // Draw coordinate axes for reference
-            drawCoordinateAxes();
-        }
-        
-        // New screen-space grid line function that avoids clipping issues
-        function drawScreenSpaceGridLine(x1, y1, z1, x2, y2, z2) {
-            // Sample multiple points along the line to ensure visibility
-            const numSamples = 20;
-            const points = [];
+            // Draw major grid lines - THICKER
+            ctx.strokeStyle = '#AAAAAA';
+            ctx.lineWidth = 2;
             
-            for (let i = 0; i <= numSamples; i++) {
-                const t = i / numSamples;
-                const x = x1 + t * (x2 - x1);
-                const y = y1 + t * (y2 - y1);
-                const z = z1 + t * (z2 - z1);
+            // Major X-direction lines
+            for (let z = Math.floor((centerZ - extent) / majorGridSize) * majorGridSize; z <= centerZ + extent; z += majorGridSize) {
+                const start = project3D(centerX - extent, 0, z);
+                const end = project3D(centerX + extent, 0, z);
                 
-                const proj = project3D(x, y, z);
-                if (proj && proj.x >= -100 && proj.x <= canvas.width + 100 && 
-                    proj.y >= -100 && proj.y <= canvas.height + 100) {
-                    points.push(proj);
+                if (start && end) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
                 }
             }
             
-            // Draw connected line segments between visible points
-            if (points.length >= 2) {
-                ctx.beginPath();
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    ctx.lineTo(points[i].x, points[i].y);
+            // Major Z-direction lines
+            for (let x = Math.floor((centerX - extent) / majorGridSize) * majorGridSize; x <= centerX + extent; x += majorGridSize) {
+                const start = project3D(x, 0, centerZ - extent);
+                const end = project3D(x, 0, centerZ + extent);
+                
+                if (start && end) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
                 }
-                ctx.stroke();
             }
-        }
-          function drawCoordinateAxes() {
-            // Draw coordinate axes - FIXED LENGTH for performance
+              // Draw coordinate axes - PROPER LENGTH for large grid
             ctx.lineWidth = 3;
             
             // X-axis (red)
@@ -1330,8 +1353,7 @@
                 ctx.beginPath();
                 ctx.arc(origin.x, origin.y, 5, 0, Math.PI * 2);
                 ctx.fill();
-            }
-        }
+            }        }
         
         function clearCanvas() {
             objects = [];

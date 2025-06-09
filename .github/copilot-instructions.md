@@ -64,3 +64,8 @@
 - We own our own webserver and have root access to it.
 - Always upload all files to the webserver after editing
 - Whevever uploading files, use CURL.exe in PowerShell using proper PowserShell syntax.
+- Always use the following configureation for uploading files:
+  --ftp
+  --www.kettlebread.com
+  --cutlist/ 
+  --user Administrator:@aJ8231997
