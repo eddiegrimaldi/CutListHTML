@@ -1236,24 +1236,60 @@
             ctx.stroke();
             return true;
         }        function drawGrid3D() {
-            // MASSIVE FINITE GRID - 40km x 40km for vast coverage at all zoom levels
-            const gridSize = 100; // Grid spacing in world units  
-            const gridExtent = 20000; // Massive grid boundary (40km x 40km)
+            // SMART VISIBLE-ONLY GRID - Only draws grid lines that are actually visible
+            const cameraDistance = Math.sqrt(
+                camera.position.x * camera.position.x + 
+                camera.position.y * camera.position.y + 
+                camera.position.z * camera.position.z
+            );
+            
+            // Adaptive grid size based on camera distance
+            let gridSize = 100;
+            if (cameraDistance > 2000) gridSize = 200;
+            if (cameraDistance > 5000) gridSize = 500;
+            if (cameraDistance > 10000) gridSize = 1000;
+            
+            // Much smaller, performance-focused extent
+            const maxExtent = Math.min(1000, cameraDistance * 0.8);
             
             ctx.strokeStyle = '#DDDDDD';
             ctx.lineWidth = 1;
             
-            // X-direction lines (parallel to X-axis)
-            for (let z = -gridExtent; z <= gridExtent; z += gridSize) {
-                drawClippedLine3D(-gridExtent, 0, z, gridExtent, 0, z);
+            // CENTER GRID AROUND CAMERA VIEW, not position
+            const centerX = Math.round(camera.position.x / gridSize) * gridSize;
+            const centerZ = Math.round(camera.position.z / gridSize) * gridSize;
+            
+            const minX = centerX - maxExtent;
+            const maxX = centerX + maxExtent;
+            const minZ = centerZ - maxExtent;
+            const maxZ = centerZ + maxExtent;
+            
+            // HORIZONTAL GRID - Just the main XZ plane for now
+            ctx.strokeStyle = '#DDDDDD';
+            
+            // X-direction lines (much fewer)
+            for (let z = minZ; z <= maxZ; z += gridSize * 2) { // Every other line
+                drawClippedLine3D(minX, 0, z, maxX, 0, z);
             }
             
-            // Z-direction lines (parallel to Z-axis)  
-            for (let x = -gridExtent; x <= gridExtent; x += gridSize) {
-                drawClippedLine3D(x, 0, -gridExtent, x, 0, gridExtent);
+            // Z-direction lines (much fewer)
+            for (let x = minX; x <= maxX; x += gridSize * 2) { // Every other line
+                drawClippedLine3D(x, 0, minZ, x, 0, maxZ);
             }
             
-            // Draw coordinate axes for reference
+            // Add a few horizontal planes above and below
+            ctx.strokeStyle = '#EEEEEE'; // Lighter for additional planes
+            for (let y of [-gridSize, gridSize]) {
+                // Fewer lines on additional planes
+                for (let z = minZ; z <= maxZ; z += gridSize * 4) {
+                    drawClippedLine3D(minX, y, z, maxX, y, z);
+                }
+                for (let x = minX; x <= maxX; x += gridSize * 4) {
+                    drawClippedLine3D(x, y, minZ, x, y, maxZ);
+                }
+            }
+            
+            // Major coordinate axes for reference
             drawCoordinateAxes();
         }
         
