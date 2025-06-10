@@ -1,415 +1,297 @@
-<!DOCTYPE html>
+<html lang="en">
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CutList - Standalone</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    <title>CutList - 3D Fixed</title>
+    <style>        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2C2C2C; height: 100vh; color: #ffffff; overflow: hidden; }
         
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* FULL SCREEN LAYOUT */
+        .toolbar { position: fixed; top: 10px; left: 10px; z-index: 1000; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .button { background: rgba(0, 0, 0, 0.8); border: none; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.3); }
+        .button:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-1px); }
+        .button.active { background: rgba(76, 175, 80, 0.8); box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4); }
         
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
-            min-height: 100vh;
-            color: #ffffff;
-        }
+        /* FULL SCREEN CANVAS */
+        .canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #F5F5F5; }
+        #drawingCanvas { width: 100%; height: 100%; cursor: crosshair; display: block; background: #FAFAFA; }
         
-        .header {
-            background: rgba(0,0,0,0.3);
-            padding: 1rem;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 2rem;
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .button {
-            background: linear-gradient(45deg, #CD853F, #DEB887);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            color: #2F1B14;
-            font-weight: bold;
-            cursor: pointer;
-            margin: 10px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }
-        
-        .drawing-world {
-            display: none;
-            margin-top: 2rem;
-        }
-        
-        .toolbar {
-            background: rgba(0,0,0,0.3);
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }          .canvas-container {
-            position: relative;
-            background: transparent;
-            border-radius: 10px;
-            overflow: hidden;
-            height: 600px;
-            width: 100%;
-            max-width: 100%;
-        }
-        
-        #drawingWorld {
-          width: 100%;
-          height: 100%;
-          min-width: 320px;
-          min-height: 240px;
-          display: block;
-          background: #f0f0f0;
-          border: 3px solid #FF00FF;
-          box-sizing: border-box;
-        }
-        
-        #drawingCanvas {
-          width: 100%;
-          height: 100%;
-          min-width: 320px;
-          min-height: 240px;
-          background: #fff;
-          border: 2px dashed #00f;
-          display: block;
-          margin: 0 auto;
-        }
-        
-        .status {
-            background: rgba(0,0,0,0.3);
-            padding: 1rem;
-            border-radius: 10px;
-            margin-top: 1rem;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        
-        .tool.active {
-            background: linear-gradient(45deg, #FFD700, #FFA500);
-            color: #2F1B14;
-        }
-        
-        .coords {
-            font-family: monospace;
-            background: rgba(0,0,0,0.2);
-            padding: 5px 10px;
-            border-radius: 5px;
-        }
+        /* STATUS BAR */
+        .status-bar { position: fixed; bottom: 10px; left: 10px; right: 10px; background: rgba(0, 0, 0, 0.8); color: white; padding: 0.5rem 1rem; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.8rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; z-index: 1000; }
     </style>
 </head>
 <body>
-    <div id="errorDisplay" style="display:none;position:fixed;top:0;left:0;width:100vw;background:#ffdddd;color:#900;padding:10px;z-index:9999;font-family:monospace;"></div>
-    <div id="loadingMessage" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:#fff8;display:flex;align-items:center;justify-content:center;z-index:9998;font-size:2em;font-family:sans-serif;">Loading CutList...</div>
-    <div class="header">
-        <h1>Kettlebread</h1>
-        <p>Standalone Version - No Server Required</p>
+    <!-- FULL SCREEN TOOLBAR -->
+    <div class="toolbar">
+        <button class="button active" onclick="setTool('select')">[S] Select</button>
+        <button class="button" onclick="setTool('line')">[L] Line</button>
+        <button class="button" onclick="setTool('rectangle')">[R] Rectangle</button>
+        <button class="button" onclick="setTool('circle')">[C] Circle</button>
+        <button class="button" onclick="toggleGrid()">[G] Grid</button>
+        <button class="button" onclick="clearCanvas()">[DEL] Clear</button>
+        <button class="button" onclick="resetCamera()">[V] Reset View</button>
     </div>
     
-    <div class="container">
-        <div id="dashboard">
-            <h2>Welcome to CutList</h2>
-            <p>Design your woodworking projects with precision and ease.</p>
-            <br>
-            <button class="button" onclick="enterDrawingWorld()">🎨 Enter Drawing World</button>
-            <button class="button" onclick="showMaterials()">📋 Materials Database</button>
-            <button class="button" onclick="showProjects()">💾 My Projects</button>
+    <!-- FULL SCREEN CANVAS -->
+    <div class="canvas-container">
+        <canvas id="drawingCanvas"></canvas>
+    </div>
+    
+    <!-- FULL SCREEN STATUS BAR -->
+    <div class="status-bar">
+        <div class="tool-info">
+            <strong>Tool:</strong> <span id="currentTool">Select - 2D Orthographic</span>
         </div>
-        
-        <div id="drawingWorld" class="drawing-world">            <div class="toolbar">
-                <button class="button tool" id="selectTool" onclick="setTool('select')">👆 Select</button>
-                <button class="button tool" id="lineTool" onclick="setTool('line')">📏 Line</button>
-                <button class="button tool" id="rectangleTool" onclick="setTool('rectangle')">⬜ Rectangle</button>
-                <button class="button tool" id="circleTool" onclick="setTool('circle')">⭕ Circle</button>
-                <button class="button" onclick="toggleGrid()">🔲 Grid</button>
-                <button class="button" onclick="addSampleObjects()">🎭 Demo</button>
-                <button class="button" onclick="clearCanvas()">🗑️ Clear</button>
-                <button class="button" onclick="resetCamera()">🎯 Reset View</button>
-                <button class="button" onclick="exitDrawingWorld()">🏠 Back to Dashboard</button>
-            </div>
-              <div class="canvas-container">
-                <canvas id="drawingCanvas"></canvas>
-            </div>            <div class="status">
-                <div>
-                    <strong>Tool:</strong> <span id="currentTool">Select - Sketch Mode (Orthographic)</span>
-                </div>
-                <div class="coords">
-                    <strong>Mouse:</strong> <span id="mouseCoords">0, 0</span>
-                </div>
-                <div>
-                    <strong>Zoom:</strong> <span id="zoomLevel">100%</span>
-                </div>
-                <div>
-                    <strong>Objects:</strong> <span id="objectCount">0</span>
-                </div>                <div style="font-size: 0.8em; color: #ccc; margin-top: 5px;">
-                    <strong>Controls:</strong> Right-drag: 3D Mode | Space: Toggle Mode | Middle-drag: Pan | Wheel: Zoom | Home: Reset<br>
-                    <strong>Keys:</strong> S=Select, L=Line, R=Rectangle, C=Circle, G=Grid, Space=Mode Toggle, Esc=Cancel, Del=Delete
-                </div>
-            </div>
+        <div class="coords">
+            <strong>Mouse:</strong> <span id="mouseCoords">0, 0</span>
         </div>
-        
-        <div id="materialsView" style="display: none;">
-            <h2>📋 Materials Database</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                    <h3>🌳 Hardwoods</h3>
-                    <ul>
-                        <li>Oak - Strong, durable</li>
-                        <li>Maple - Fine grain</li>
-                        <li>Cherry - Beautiful finish</li>
-                        <li>Walnut - Premium wood</li>
-                    </ul>
-                </div>
-                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                    <h3>🌲 Softwoods</h3>
-                    <ul>
-                        <li>Pine - Easy to work</li>
-                        <li>Cedar - Weather resistant</li>
-                        <li>Fir - Construction grade</li>
-                        <li>Spruce - Light weight</li>
-                    </ul>
-                </div>
-            </div>
-            <button class="button" onclick="showDashboard()" style="margin-top: 1rem;">🏠 Back to Dashboard</button>
+        <div>
+            <strong>Objects:</strong> <span id="objectCount">0</span>
         </div>
-        
-        <div id="projectsView" style="display: none;">
-            <h2>💾 My Projects</h2>
-            <p>Project management functionality coming soon!</p>
-            <button class="button" onclick="showDashboard()" style="margin-top: 1rem;">🏠 Back to Dashboard</button>
+        <div style="font-size: 0.75em; color: #ccc;">
+            <strong>FIXED:</strong> Right-drag: TRUE 3D | Space: Toggle | Wheel: Zoom | Objects draw ON grid plane
         </div>
-    </div>    <script>
-        console.log('🔥 SCRIPT STARTED LOADING...');
-        
-        // Global variables
+    </div>
+
+    <script>
         let canvas, ctx;
         let currentTool = 'select';
         let isDrawing = false;
         let startX, startY;
         let objects = [];
-        let selectedObject = null;        // 3D Camera system with true perspective
+        let selectedObject = null;        // FIXED: Enhanced Camera with PROPER 3D coordinate system
         let camera = {
-            // 2D properties for sketch mode
-            x: 0,
-            y: 0,
-            zoom: 1,            // 3D properties for modeling mode - positioned for optimal grid visibility
-            position: { x: 200, y: 150, z: 400 }, // Better starting position
-            rotation: { x: -0.4, y: 0.3 }, // Better starting angle            target: { x: 0, y: 0, z: 0 },
-            fov: 60,            near: 0.5, // Balanced near clipping plane - allows diagonal viewing without excessive clipping
-            far: 50000, // Much larger far clipping to handle big grid
-            
-            mode: 'sketch', // 'sketch' or 'modeling'            // Movement properties for FPS-style controls - MUCH BETTER TUNED
-            speed: 150, // Much faster movement
-            sensitivity: 0.02 // MUCH HIGHER sensitivity to test if this is the issue
+            // 2D properties
+            x: 0, y: 0, zoom: 1,            // 3D properties - MASTER'S FIX: Standard camera position - behind and above grid
+            position: { x: 0, y: 300, z: 500 },    // Behind grid, elevated, looking toward origin
+            rotation: { x: -0.5, y: 0, z: 0 },     // Look down at grid from elevated position
+            target: { x: 0, y: 0, z: 0 },
+            fov: 90, near: 0.5, far: 5000,
+            mode: 'sketch',
+            isOrtho: true,            speed: 150,
+            sensitivity: 0.005  // Reduced sensitivity for smoother, more controlled rotation
         };
-        
-        // Mouse and interaction state
-        let mouse = {
-            x: 0, y: 0,
-            lastX: 0, lastY: 0,
-            isDown: false,
-            button: -1,
-            isDragging: false
-        };
-        
+
+        let mouse = { x: 0, y: 0, lastX: 0, lastY: 0, isDown: false, button: -1, isDragging: false };
         let keys = {};
-        
-        // Camera controls
         let isRotating = false;
         let isPanning = false;
         let rotationSensitivity = 0.01;
-        let zoomSensitivity = 0.1;
-        
-        // Grid control
         let showGrid = true;
-          // Initialize when page loads
-        window.onerror = function(message, source, lineno, colno, error) {
-            const errDiv = document.getElementById('errorDisplay');
-            errDiv.style.display = 'block';
-            errDiv.textContent = 'JS ERROR: ' + message + ' at ' + source + ':' + lineno + ':' + colno;
-        };
+
         window.onload = function() {
-            console.log('🚀 CUTLIST 3D CAMERA SYSTEM LOADED!');
-            console.log('📋 CONTROLS: Space=Toggle Mode, Right-drag=3D Mode, WASD=Move, Mouse Wheel=Zoom');
             canvas = document.getElementById('drawingCanvas');
             ctx = canvas.getContext('2d');
-            // Set canvas size to match display size
             resizeCanvas();
-            // Enhanced mouse event listeners
+
             canvas.addEventListener('mousedown', handleMouseDown);
             canvas.addEventListener('mousemove', handleMouseMove);
             canvas.addEventListener('mouseup', handleMouseUp);
             canvas.addEventListener('wheel', handleWheel, { passive: false });
             canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-            // Keyboard listeners
+
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
-            // Resize listener
             window.addEventListener('resize', resizeCanvas);
-            // Set default tool
+
             setTool('select');
-            // Add demo/sample objects for Master
-            addSampleObjects();
-            // Hide overlays and haze for Master
-            hideAllOverlays();
+            redrawCanvas();
         };
-        
+
         function resizeCanvas() {
-            // Ensure the canvas's width and height properties match its display size
-            const container = canvas.parentElement;
-            // Use getBoundingClientRect to get the actual rendered size
-            const rect = container.getBoundingClientRect();
+            const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width;
             canvas.height = rect.height;
             redrawCanvas();
-        }          function enterDrawingWorld() {
-            hideAllOverlays(); // Remove any loading/error overlays
-            document.getElementById('dashboard').style.display = 'none';
-            document.getElementById('drawingWorld').style.display = 'block';
-            document.getElementById('materialsView').style.display = 'none';
-            document.getElementById('projectsView').style.display = 'none';
-            // Ensure canvas is properly sized when entering drawing world
-            setTimeout(resizeCanvas, 100);
-            // Start the game loop for continuous camera updates
-            startGameLoop();
         }
-        
-        // Game loop for continuous updates
-        let gameLoopId = null;
-        let lastTime = 0;
-        
-        function startGameLoop() {
-            if (gameLoopId) return; // Already running
+
+        // TRUE 3D PERSPECTIVE PROJECTION - The key fix!
+        function project3D(x, y, z) {
+            if (camera.mode !== 'modeling') {
+                return { x: x, y: y, depth: 0 };
+            }
             
-            function gameLoop(currentTime) {
-                const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
-                lastTime = currentTime;
+            // Transform to camera space
+            const dx = x - camera.position.x;
+            const dy = y - camera.position.y;
+            const dz = z - camera.position.z;            // MASTER'S FIX: Correct rotation order - Yaw first, then Pitch (standard FPS camera)
+            const cos_pitch = Math.cos(camera.rotation.x);
+            const sin_pitch = Math.sin(camera.rotation.x);
+            const cos_yaw = Math.cos(camera.rotation.y);
+            const sin_yaw = Math.sin(camera.rotation.y);
+            
+            // First rotate around Y-axis (yaw) - left/right rotation
+            const x1 = dx * cos_yaw - dz * sin_yaw;
+            const z1 = dx * sin_yaw + dz * cos_yaw;
+            const y1 = dy;
+            
+            // Then rotate around X-axis (pitch) - up/down rotation  
+            const y2 = y1 * cos_pitch - z1 * sin_pitch;
+            const z2 = y1 * sin_pitch + z1 * cos_pitch;
+            const x2 = x1;
+            
+            // Check if behind camera
+            if (z2 <= camera.near) {
+                return null;
+            }            // MASTER'S FIX: Standard perspective projection with proper Y-axis orientation
+            const fovScale = (canvas.height / 2) / Math.tan((camera.fov * Math.PI / 180) / 2);
+            const screenX = (x2 * fovScale) / z2;
+            const screenY = -(y2 * fovScale) / z2;  // NEGATIVE Y for correct orientation (screen Y goes down)
+            
+            // Return RAW screen coordinates (applyCameraTransform handles centering)
+            return { x: screenX, y: screenY, depth: z2 };
+        }
+
+        // 3D grid with TRUE perspective
+        function drawGrid3D() {
+            const gridSize = 100;
+            const extent = 500;
+            let drawnLines = 0;
+            
+            ctx.strokeStyle = '#CCCCCC';
+            ctx.lineWidth = 1;
+            
+            // X-direction lines
+            for (let z = -extent; z <= extent; z += gridSize) {
+                const start = project3D(-extent, 0, z);
+                const end = project3D(extent, 0, z);
                 
-                // Update camera position based on keyboard input
-                updateCameraPosition(deltaTime);
-                
-                // Only redraw if camera moved or in modeling mode
-                if (camera.mode === 'modeling' && (keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'] || keys['KeyQ'] || keys['KeyE'])) {
-                    redrawCanvas();
+                if (start && end) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                    drawnLines++;
                 }
+            }
+            
+            // Z-direction lines
+            for (let x = -extent; x <= extent; x += gridSize) {
+                const start = project3D(x, 0, -extent);
+                const end = project3D(x, 0, extent);
                 
-                gameLoopId = requestAnimationFrame(gameLoop);
+                if (start && end) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                    drawnLines++;
+                }
             }
             
-            lastTime = performance.now();
-            gameLoopId = requestAnimationFrame(gameLoop);
+            console.log(`✅ TRUE 3D Grid: Drew ${drawnLines} perspective lines`);
         }
-        
-        function stopGameLoop() {
-            if (gameLoopId) {
-                cancelAnimationFrame(gameLoopId);
-                gameLoopId = null;
+
+        // 2D grid (unchanged)
+        function drawGrid2D() {
+            const minorGridSize = 20;
+            const majorGridSize = 200;
+            
+            const viewBounds = {
+                left: -canvas.width / 2 / camera.zoom + camera.x,
+                right: canvas.width / 2 / camera.zoom + camera.x,
+                top: -canvas.height / 2 / camera.zoom + camera.y,
+                bottom: canvas.height / 2 / camera.zoom + camera.y
+            };
+            
+            const padding = majorGridSize;
+            viewBounds.left -= padding;
+            viewBounds.right += padding;
+            viewBounds.top -= padding;
+            viewBounds.bottom += padding;
+            
+            // Minor lines
+            ctx.strokeStyle = '#DDDDDD';
+            ctx.lineWidth = 0.5 / camera.zoom;
+            
+            const startX = Math.floor(viewBounds.left / minorGridSize) * minorGridSize;
+            const endX = Math.ceil(viewBounds.right / minorGridSize) * minorGridSize;
+            
+            for (let x = startX; x <= endX; x += minorGridSize) {
+                if (x % majorGridSize !== 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, viewBounds.top);
+                    ctx.lineTo(x, viewBounds.bottom);
+                    ctx.stroke();
+                }
+            }
+            
+            const startY = Math.floor(viewBounds.top / minorGridSize) * minorGridSize;
+            const endY = Math.ceil(viewBounds.bottom / minorGridSize) * minorGridSize;
+            
+            for (let y = startY; y <= endY; y += minorGridSize) {
+                if (y % majorGridSize !== 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(viewBounds.left, y);
+                    ctx.lineTo(viewBounds.right, y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Major lines
+            ctx.strokeStyle = '#BBBBBB';
+            ctx.lineWidth = 0.8 / camera.zoom;
+            
+            const majorStartX = Math.floor(viewBounds.left / majorGridSize) * majorGridSize;
+            const majorEndX = Math.ceil(viewBounds.right / majorGridSize) * majorGridSize;
+            
+            for (let x = majorStartX; x <= majorEndX; x += majorGridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, viewBounds.top);
+                ctx.lineTo(x, viewBounds.bottom);
+                ctx.stroke();
+            }
+            
+            const majorStartY = Math.floor(viewBounds.top / majorGridSize) * majorGridSize;
+            const majorEndY = Math.ceil(viewBounds.bottom / majorGridSize) * majorGridSize;
+            
+            for (let y = majorStartY; y <= majorEndY; y += majorGridSize) {
+                ctx.beginPath();
+                ctx.moveTo(viewBounds.left, y);
+                ctx.lineTo(viewBounds.right, y);
+                ctx.stroke();
             }
         }
-        
-        function exitDrawingWorld() { showDashboard(); }
-        
-        function showDashboard() {
-            document.getElementById('dashboard').style.display = 'block';
-            document.getElementById('drawingWorld').style.display = 'none';
-            document.getElementById('materialsView').style.display = 'none';
-            document.getElementById('projectsView').style.display = 'none';
-        }
-        
-        function showMaterials() {
-            document.getElementById('dashboard').style.display = 'none';
-            document.getElementById('drawingWorld').style.display = 'none';
-            document.getElementById('materialsView').style.display = 'block';
-            document.getElementById('projectsView').style.display = 'none';
-        }
-        
-        function showProjects() {
-            document.getElementById('dashboard').style.display = 'none';
-            document.getElementById('drawingWorld').style.display = 'none';
-            document.getElementById('materialsView').style.display = 'none';
-            document.getElementById('projectsView').style.display = 'block';
-        }
-          function setTool(tool) {
-            currentTool = tool;
-            updateModeDisplay();
+
+        function drawGrid() {
+            if (!showGrid) return;
             
-            // Update tool buttons
-            document.querySelectorAll('.tool').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(tool + 'Tool').classList.add('active');
-              // Change cursor
-            canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+            if (camera.mode === 'modeling') {
+                drawGrid3D();
+            } else {
+                drawGrid2D();
+            }
+        }        // FIXED: Camera transform - TRUE 3D vs 2D
+        function applyCameraTransform() {
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            
+            if (camera.mode === 'modeling') {
+                // TRUE 3D MODE - No canvas scaling, use project3D()
+                console.log('✅ 3D Mode: Using TRUE perspective projection');
+                // MASTER'S FIX: No late update rotation - fix camera orientation properly
+            } else {
+                // 2D MODE - Apply 2D transforms
+                ctx.scale(camera.zoom, camera.zoom);
+                ctx.translate(-camera.x, -camera.y);
+            }
         }
-        
+
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
-          function getWorldCoords(screenX, screenY) {
-            // Convert screen coordinates to world coordinates accounting for camera transform
-            // Start by translating to center-origin coordinates
-            let worldX = screenX - canvas.width / 2;
-            let worldY = screenY - canvas.height / 2;
-            
-            // Reverse zoom transformation
-            worldX /= camera.zoom;
-            worldY /= camera.zoom;
-            
-            // Reverse camera translation
-            worldX += camera.x;
-            worldY += camera.y;
-            
-            return { x: worldX, y: worldY };
+
+        function getWorldCoords(screenX, screenY) {
+            if (camera.mode === 'modeling') {
+                return { x: screenX - canvas.width/2, y: screenY - canvas.height/2 };
+            } else {
+                const worldX = (screenX - canvas.width / 2) / camera.zoom + camera.x;
+                const worldY = (screenY - canvas.height / 2) / camera.zoom + camera.y;
+                return { x: worldX, y: worldY };
+            }
         }
-        
-        function getScreenCoords(worldX, worldY) {
-            // Convert world coordinates to screen coordinates
-            let screenX = worldX - camera.x;
-            let screenY = worldY - camera.y;
-            
-            // Apply zoom
-            screenX *= camera.zoom;
-            screenY *= camera.zoom;
-            
-            // Translate to screen coordinates
-            screenX += canvas.width / 2;
-            screenY += canvas.height / 2;
-            
-            return { x: screenX, y: screenY };
-        }
-          // Enhanced mouse handling for camera controls
+
         function handleMouseDown(e) {
             const pos = getMousePos(e);
             mouse.x = pos.x;
@@ -419,1156 +301,496 @@
             mouse.isDown = true;
             mouse.button = e.button;
             mouse.isDragging = false;
-            
-            // Mouse button assignments for 3D navigation
+
             if (e.button === 2) {
-                // Right mouse button = rotation in 3D, mode switching from 2D
                 isRotating = true;
                 isPanning = false;
                 e.preventDefault();
                 return;
             } else if (e.button === 1) {
-                // Middle mouse button = panning in both 2D and 3D
-                isRotating = false;
-                isPanning = true;
-                e.preventDefault();
-                return;
-            } else if (e.button === 0 && camera.mode === 'modeling' && (e.ctrlKey || e.shiftKey)) {
-                // Left mouse + Ctrl/Shift = panning in 3D mode (alternative to middle mouse)
                 isRotating = false;
                 isPanning = true;
                 e.preventDefault();
                 return;
             }
-            
-            // Left mouse button = drawing (if in sketch mode and drawing tool selected)
+
             if (e.button === 0 && camera.mode === 'sketch') {
                 if (currentTool === 'select') {
                     selectObjectAt(pos.x, pos.y);
                 } else {
                     startDrawing(e);
                 }
-            } else if (e.button === 0 && currentTool === 'select') {
-                // Object selection
-                selectObjectAt(pos.x, pos.y);
             }
         }
-        
+
         function handleMouseMove(e) {
             const pos = getMousePos(e);
             updateMouseCoords(e);
-            
+
             if (!mouse.isDown) {
                 mouse.x = pos.x;
                 mouse.y = pos.y;
                 return;
             }
-            
+
             const deltaX = pos.x - mouse.lastX;
-            const deltaY = pos.y - mouse.lastY;            // Camera rotation (right mouse button)
+            const deltaY = pos.y - mouse.lastY;
+
+            // FIXED: Right-click rotation with TRUE 3D
             if (isRotating) {
                 mouse.isDragging = true;
-                  if (camera.mode === 'sketch') {
-                    // In sketch mode, right-click immediately switches to modeling mode
-                    console.log('🖱️ RIGHT-DRAG DETECTED - SWITCHING TO 3D MODE!');
-                    switchToModelingMode();
-                }// Apply FPS-style rotation in modeling mode
-                if (camera.mode === 'modeling') {
-                    // COMPLETELY REWRITTEN FPS MOUSE CONTROLS
-                      // Standard FPS controls: 
-                    // - Mouse RIGHT = look RIGHT (positive yaw)
-                    // - Mouse LEFT = look LEFT (negative yaw)  
-                    // - Mouse UP = look UP (negative pitch - INVERTED for natural feel)
-                    // - Mouse DOWN = look DOWN (positive pitch - INVERTED for natural feel)
+
+                if (camera.mode === 'sketch') {
+                    const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (totalMovement > 3) {
+                        switchToModelingMode();
+                        console.log('🎯 RIGHT-CLICK: SWITCHED TO TRUE 3D PERSPECTIVE MODE!');
+                    }
+                }                if (camera.mode === 'modeling') {
+                    // MASTER'S FIX: Camera-relative rotation (not global)
+                    camera.rotation.y += deltaX * camera.sensitivity;  // Yaw around camera's up axis
+                    camera.rotation.x += deltaY * camera.sensitivity;  // Pitch around camera's right axis (STANDARD for behind-camera position)
                     
-                    // Yaw (horizontal mouse movement) - around world Y-axis
-                    camera.rotation.y += deltaX * camera.sensitivity;
+                    // MASTER'S FIX: Much wider rotation limits for full 3D navigation
+                    camera.rotation.x = Math.max(-Math.PI * 0.8, Math.min(Math.PI * 0.8, camera.rotation.x));
                     
-                    // Pitch (vertical mouse movement) - INVERTED for natural FPS feel
-                    camera.rotation.x -= deltaY * camera.sensitivity;
-                    
-                    // Clamp pitch to prevent flipping upside down
-                    camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
-                    
-                    console.log('🖱️ REWRITTEN Mouse Controls:', {
-                        deltaX, deltaY,
-                        yaw: (camera.rotation.y * 180 / Math.PI).toFixed(1) + '°',
-                        pitch: (camera.rotation.x * 180 / Math.PI).toFixed(1) + '°'
-                    });
+                    console.log(`✅ Camera Rotation: x=${camera.rotation.x.toFixed(3)}, y=${camera.rotation.y.toFixed(3)}`);
                 }
-                
-                redrawCanvas();
-            }            // Camera panning - works in both 2D and 3D modes
-            else if (isPanning) {
+
+                redrawCanvas();            } else if (isPanning) {
                 mouse.isDragging = true;
                 
-                if (camera.mode === 'sketch') {
-                    // 2D panning - move camera position in world space
+                if (camera.mode === 'modeling') {
+                    // MASTER'S FIX: Camera-relative panning (not global coordinates)
+                    const panSpeed = 2.0;
+                    
+                    // Calculate camera's local right and up vectors
+                    const cos_yaw = Math.cos(camera.rotation.y);
+                    const sin_yaw = Math.sin(camera.rotation.y);
+                    const cos_pitch = Math.cos(camera.rotation.x);
+                    const sin_pitch = Math.sin(camera.rotation.x);
+                    
+                    // Camera's right vector (for left/right movement)
+                    const rightX = cos_yaw;
+                    const rightZ = -sin_yaw;
+                    
+                    // Camera's up vector (for up/down movement) 
+                    const upX = sin_yaw * sin_pitch;
+                    const upY = cos_pitch;
+                    const upZ = cos_yaw * sin_pitch;
+                    
+                    // Apply camera-relative movement
+                    camera.position.x -= (deltaX * rightX * panSpeed);
+                    camera.position.y -= (deltaY * upY * panSpeed);
+                    camera.position.z -= (deltaX * rightZ * panSpeed + deltaY * upZ * panSpeed);
+                } else {
                     camera.x -= deltaX / camera.zoom;
                     camera.y -= deltaY / camera.zoom;
-                } else {                    // 3D panning - move camera position relative to its current orientation (FPS-style)
-                    const panSpeed = 2.0; // Smooth panning speed
-                    
-                    // Calculate proper camera-relative vectors for true FPS-style panning
-                    const cosPitch = Math.cos(camera.rotation.x);
-                    const sinPitch = Math.sin(camera.rotation.x);
-                    const cosYaw = Math.cos(camera.rotation.y);
-                    const sinYaw = Math.sin(camera.rotation.y);
-                    
-                    // Forward vector (where camera is looking)
-                    const forward = {
-                        x: sinYaw * cosPitch,
-                        y: -sinPitch,
-                        z: cosYaw * cosPitch
-                    };
-                    
-                    // Right vector (camera's local right direction) - perpendicular to forward and world up
-                    const worldUp = { x: 0, y: 1, z: 0 };
-                    const right = {
-                        x: cosYaw,
-                        y: 0,
-                        z: -sinYaw
-                    };
-                    
-                    // Up vector (camera's local up direction) - cross product of right and forward
-                    const up = {
-                        x: right.y * forward.z - right.z * forward.y,
-                        y: right.z * forward.x - right.x * forward.z,
-                        z: right.x * forward.y - right.y * forward.x
-                    };// Move camera along right and up vectors
-                    // Natural panning: mouse up moves camera up, mouse down moves camera down
-                    camera.position.x += (-deltaX * right.x - deltaY * up.x) * panSpeed;
-                    camera.position.y += (-deltaX * right.y - deltaY * up.y) * panSpeed;
-                    camera.position.z += (-deltaX * right.z - deltaY * up.z) * panSpeed;
                 }
                 redrawCanvas();
-            }
-            // Drawing (left mouse button in sketch mode)
-            else if (mouse.button === 0 && camera.mode === 'sketch' && isDrawing) {
+            } else if (mouse.button === 0 && camera.mode === 'sketch' && isDrawing) {
                 draw(e);
             }
-            
+
             mouse.lastX = pos.x;
             mouse.lastY = pos.y;
         }
-          function handleMouseUp(e) {
+
+        function handleMouseUp(e) {
             if (mouse.button === 0 && isDrawing) {
                 stopDrawing(e);
             }
-              // Mode switching is now controlled only by Space key or explicit user action
-            // No automatic return to sketch mode based on movement
-            
+
             mouse.isDown = false;
             isRotating = false;
             isPanning = false;
             mouse.isDragging = false;
-        }        // Wheel zoom handling - works in both 2D and 3D modes
+        }
+
         function handleWheel(e) {
-            e.preventDefault();
-            
-            if (camera.mode === 'sketch') {
-                // 2D zoom - scroll up = zoom in, scroll down = zoom out
+            e.preventDefault();            if (camera.mode === 'modeling') {
+                // MASTER'S FIX: Camera-relative zoom (move along camera's forward vector)
+                const zoomSpeed = 50;
+                const direction = e.deltaY > 0 ? 1 : -1;
+                
+                // Calculate camera's forward vector properly
+                const cos_yaw = Math.cos(camera.rotation.y);
+                const sin_yaw = Math.sin(camera.rotation.y);
+                const cos_pitch = Math.cos(camera.rotation.x);
+                const sin_pitch = Math.sin(camera.rotation.x);
+                
+                // Camera's forward vector (direction camera is looking)
+                const forwardX = sin_yaw * cos_pitch;
+                const forwardY = -sin_pitch;
+                const forwardZ = cos_yaw * cos_pitch;
+                
+                // Move camera along its forward direction
+                camera.position.x += forwardX * direction * zoomSpeed;
+                camera.position.y += forwardY * direction * zoomSpeed;
+                camera.position.z += forwardZ * direction * zoomSpeed;
+            } else {
+                // 2D zoom
                 const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
                 const newZoom = camera.zoom * zoomFactor;
                 camera.zoom = Math.max(0.1, Math.min(10, newZoom));
-                document.getElementById('zoomLevel').textContent = Math.round(camera.zoom * 100) + '%';
-            } else {
-                // 3D zoom - move camera forward/backward along view direction
-                const zoomSpeed = 50;
-                // Intuitive direction: scroll up = zoom in (move closer), scroll down = zoom out (move away)
-                const direction = e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
-                
-                // Calculate forward vector
-                const cos_pitch = Math.cos(camera.rotation.x);
-                const sin_pitch = Math.sin(camera.rotation.x);
-                const cos_yaw = Math.cos(camera.rotation.y);
-                const sin_yaw = Math.sin(camera.rotation.y);
-                
-                const forward = {
-                    x: sin_yaw * cos_pitch,
-                    y: -sin_pitch,
-                    z: cos_yaw * cos_pitch
-                };
-                
-                // Move camera along forward vector
-                camera.position.x += forward.x * direction;
-                camera.position.y += forward.y * direction;
-                camera.position.z += forward.z * direction;
-                
-                // Update zoom display based on distance from origin
-                const distance = Math.sqrt(
-                    camera.position.x * camera.position.x + 
-                    camera.position.y * camera.position.y + 
-                    camera.position.z * camera.position.z
-                );
-                document.getElementById('zoomLevel').textContent = Math.round((500 / distance) * 100) + '%';
             }
-            
-            redrawCanvas();        }
-          // Reset camera to default view
-        function resetCamera() {
-            // Reset 2D camera properties
+
+            document.getElementById('zoomLevel').textContent = Math.round(camera.zoom * 100) + '%';
+            redrawCanvas();
+        }        function resetCamera() {
             camera.x = 0;
             camera.y = 0;
-            camera.zoom = 1;
-            // Reset 3D camera properties to optimal position for grid visibility
-            camera.position.x = 200;
-            camera.position.y = 150;
-            camera.position.z = 400;
-            camera.rotation.x = -0.4; // Better starting pitch
-            camera.rotation.y = 0.3; // Better starting yaw for perspective
-            switchToSketchMode(); // Always return to sketch mode on reset
-            document.getElementById('zoomLevel').textContent = '100%';
+            camera.zoom = 1;            // MASTER'S FIX: Standard camera position - behind and above grid  
+            camera.position = { x: 0, y: 300, z: 500 };
+            camera.rotation = { x: -0.5, y: 0, z: 0 };  // Look down at grid from elevated position
+            switchToSketchMode();
             redrawCanvas();
-        }// Keyboard handling with FPS-style movement support
+        }
+
         function handleKeyDown(e) {
-            keys[e.code] = true;
-              // Camera controls with keyboard
+            keys[e.key.toLowerCase()] = true;
+
             if (e.key === ' ') {
-                e.preventDefault(); // Prevent page scroll
-                console.log('🔄 SPACE KEY PRESSED - TOGGLING CAMERA MODE!');
-                // Space key toggles between sketch and modeling mode
+                e.preventDefault();
                 if (camera.mode === 'sketch') {
                     switchToModelingMode();
                 } else {
                     switchToSketchMode();
                 }
             }
-            
-            // Reset camera view
+
             if (e.key === 'Home' || (e.ctrlKey && e.key === '0')) {
                 e.preventDefault();
                 resetCamera();
             }
-            
-            // Prevent default for movement keys to avoid page scrolling
-            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-                e.preventDefault();
-            }        }
-        
-        function handleKeyUp(e) {
-            keys[e.code] = false;
         }
-          // Mode switching functions
+
+        function handleKeyUp(e) {
+            keys[e.key.toLowerCase()] = false;
+        }        // FIXED: Mode switching with TRUE 3D and visual continuity
         function switchToModelingMode() {
             if (camera.mode === 'modeling') return;
-            console.log('🎯 SWITCHING TO 3D MODELING MODE WITH VISUAL CONTINUITY!');
+            console.log('🎯 SWITCHING TO TRUE 3D PERSPECTIVE MODE!');
+              // VISUAL CONTINUITY FIX: Set camera to match 2D view exactly
+            // In 2D, we look at (camera.x, camera.y) with zoom
+            // In 3D, position camera above this point looking DOWN (like 2D orthographic view)
             
-            // Store current 2D camera position for PERFECT transition
-            const current2DX = camera.x;
-            const current2DY = camera.y;
-            const currentZoom = camera.zoom;
+            camera.position.x = camera.x;
+            camera.position.z = camera.y;  // 2D Y becomes 3D Z
+            camera.position.y = Math.max(100, 400 / camera.zoom);  // Height based on zoom            // MASTER'S FIX: Start looking DOWN at grid (matching 2D orthographic view)
+            camera.rotation.x = -Math.PI / 3;  // Look down at 60 degrees (steep down angle)
+            camera.rotation.y = Math.PI;       // Rotate 180 degrees to face the correct direction
+            camera.rotation.z = 0;             // No roll
             
             camera.mode = 'modeling';
             camera.isOrtho = false;
             
-            // PERFECT VISUAL CONTINUITY: Position 3D camera directly above the 2D center point
-            // The user should see EXACTLY the same view initially, then can rotate away
-            camera.position.x = current2DX; // Look at exactly the same X coordinate
-            camera.position.y = 500; // High enough to see the area
-            camera.position.z = current2DY; // Look at exactly the same Z coordinate (was Y in 2D)
-            
-            // Start looking straight down - EXACTLY matching the 2D view
-            camera.rotation.x = -Math.PI / 2; // Look straight down (90 degrees down)
-            camera.rotation.y = 0; // No horizontal rotation initially
-            
-            // Adjust height based on zoom level to maintain similar view scale
-            const zoomBasedHeight = 500 / currentZoom;
-            camera.position.y = Math.max(100, zoomBasedHeight);
-            
-            updateModeDisplay();
-            document.body.style.border = '5px solid lime';
-            setTimeout(() => document.body.style.border = '', 1000);
-            
-            console.log('🎯 VISUAL CONTINUITY Camera Setup:', {
-                '2D_Center': `(${current2DX}, ${current2DY})`,
-                '3D_Position': `(${camera.position.x}, ${camera.position.y}, ${camera.position.z})`,
-                '3D_Rotation': `(${camera.rotation.x.toFixed(2)}, ${camera.rotation.y.toFixed(2)})`,
-                'Height_Based_On_Zoom': zoomBasedHeight
+            console.log('✅ 3D Camera positioned for continuity (preserving rotation):', {
+                position: camera.position,
+                rotation: { x: camera.rotation.x, y: camera.rotation.y },
+                from2D: { x: camera.x, y: camera.y, zoom: camera.zoom }
             });
             
+            updateModeDisplay();
             redrawCanvas();
-        }
-          function switchToSketchMode() {
+        }function switchToSketchMode() {
             if (camera.mode === 'sketch') return;
             console.log('📐 SWITCHING TO 2D SKETCH MODE!');
-            camera.mode = 'sketch';
+            
+            // VISUAL CONTINUITY FIX: Preserve view position when returning to 2D
+            // Set 2D camera to where we were looking in 3D
+            camera.x = camera.position.x;
+            camera.y = camera.position.z;  // 3D Z becomes 2D Y
+            // Adjust zoom based on 3D camera height for similar scale
+            camera.zoom = Math.max(0.1, Math.min(10, 400 / camera.position.y));
+              camera.mode = 'sketch';
             camera.isOrtho = true;
             camera.rotation.x = 0;
             camera.rotation.y = 0;
+            camera.rotation.z = 0;  // Reset Z-axis roll
+            
+            console.log('✅ 2D Camera positioned for continuity:', {
+                from3D: camera.position,
+                to2D: { x: camera.x, y: camera.y, zoom: camera.zoom }
+            });
+            
             updateModeDisplay();
-            document.body.style.border = '5px solid cyan';
-            setTimeout(() => document.body.style.border = '', 1000);
-            // Ensure canvas is sized correctly for 2D
-            resizeCanvas();
+            redrawCanvas();
         }
-        
+
         function updateModeDisplay() {
-            const modeText = camera.mode === 'sketch' ? 'Sketch Mode (2D Orthographic)' : 'Modeling Mode (3D Perspective)';
-            const controls = camera.mode === 'sketch' ? 
-                ' - Right-drag to enter 3D mode, Middle-drag to pan' : 
-                ' - Right-drag to rotate, Middle-drag/Ctrl+drag to pan, Space/Home to return to 2D';
-            document.getElementById('currentTool').textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} - ${modeText}${controls}`;
+            const modeText = camera.mode === 'sketch' ? 
+                '2D Orthographic' : 
+                'TRUE 3D Perspective ✅';
+            const rotationHint = camera.mode === 'sketch' ? 
+                ' - Right-drag for 3D' : 
+                ' - Space for 2D';
+            document.getElementById('currentTool').textContent = 
+                `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} - ${modeText}${rotationHint}`;
         }
-          function updateMouseCoords(e) {
+
+        function updateMouseCoords(e) {
             const pos = getMousePos(e);
             const worldPos = getWorldCoords(pos.x, pos.y);
-            document.getElementById('mouseCoords').textContent = `${Math.round(worldPos.x)}, ${Math.round(worldPos.y)}`;
+            document.getElementById('mouseCoords').textContent = 
+                `${Math.round(worldPos.x)}, ${Math.round(worldPos.y)}`;
         }
-          function startDrawing(e) {
+
+        function startDrawing(e) {
             if (currentTool === 'select') return;
-            
             const pos = getMousePos(e);
             const worldPos = getWorldCoords(pos.x, pos.y);
             startX = worldPos.x;
             startY = worldPos.y;
             isDrawing = true;
-        }
-        
-        function draw(e) {
+        }        function draw(e) {
             if (!isDrawing || currentTool === 'select') return;
-            
             const pos = getMousePos(e);
             const worldPos = getWorldCoords(pos.x, pos.y);
-            
-            // Clear and redraw everything
+
             redrawCanvas();
-            
-            // Draw preview of current shape in world coordinates
+
             ctx.save();
             applyCameraTransform();
-            
-            ctx.strokeStyle = '#FF6B6B';
-            ctx.lineWidth = 2 / camera.zoom; // Keep line thickness constant
-            ctx.beginPath();
-            
-            switch(currentTool) {
-                case 'line':
+
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();            // FIXED: Preview drawing - objects draw FLAT on XZ grid plane in 3D mode
+            if (camera.mode === 'modeling') {
+                // 3D preview using perspective projection - map to XZ plane (Y=0)
+                if (currentTool === 'line') {
+                    const start = project3D(startX, 0, startY);  // Map Y to Z for grid plane
+                    const end = project3D(worldPos.x, 0, worldPos.y);  // Map Y to Z for grid plane
+                    if (start && end) {
+                        ctx.moveTo(start.x, start.y);
+                        ctx.lineTo(end.x, end.y);
+                    }
+                } else if (currentTool === 'rectangle') {
+                    const corners = [
+                        project3D(startX, 0, startY),          // Map to XZ plane
+                        project3D(worldPos.x, 0, startY),     // Map to XZ plane
+                        project3D(worldPos.x, 0, worldPos.y), // Map to XZ plane
+                        project3D(startX, 0, worldPos.y)      // Map to XZ plane
+                    ];
+                    if (corners.every(c => c !== null)) {
+                        ctx.moveTo(corners[0].x, corners[0].y);
+                        for (let i = 1; i < corners.length; i++) {
+                            ctx.lineTo(corners[i].x, corners[i].y);
+                        }
+                        ctx.closePath();
+                    }                } else if (currentTool === 'circle') {
+                    // FIXED: Draw circle as proper 3D polygon on grid plane (not billboard)
+                    const radius = Math.sqrt(Math.pow(worldPos.x - startX, 2) + Math.pow(worldPos.y - startY, 2));
+                    const segments = 16; // Circle segments for smooth appearance
+                    const points = [];
+                    
+                    // Generate circle points on the XZ plane (Y=0)
+                    for (let i = 0; i <= segments; i++) {
+                        const angle = (i / segments) * 2 * Math.PI;
+                        const x = startX + Math.cos(angle) * radius;
+                        const z = startY + Math.sin(angle) * radius;
+                        const point = project3D(x, 0, z); // All points on grid plane
+                        if (point) points.push(point);
+                    }
+                    
+                    // Draw circle as connected line segments (not arc)
+                    if (points.length > 3) {
+                        ctx.moveTo(points[0].x, points[0].y);
+                        for (let i = 1; i < points.length; i++) {
+                            ctx.lineTo(points[i].x, points[i].y);
+                        }
+                        ctx.closePath();
+                    }
+                }
+            } else {
+                // 2D preview - same as before
+                if (currentTool === 'line') {
                     ctx.moveTo(startX, startY);
                     ctx.lineTo(worldPos.x, worldPos.y);
-                    break;
-                case 'rectangle':
-                    ctx.rect(startX, startY, worldPos.x - startX, worldPos.y - startY);
-                    break;
-                case 'circle':
+                } else if (currentTool === 'rectangle') {
+                    const width = worldPos.x - startX;
+                    const height = worldPos.y - startY;
+                    ctx.rect(startX, startY, width, height);
+                } else if (currentTool === 'circle') {
                     const radius = Math.sqrt(Math.pow(worldPos.x - startX, 2) + Math.pow(worldPos.y - startY, 2));
                     ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
-                    break;
+                }
             }
+
             ctx.stroke();
             ctx.restore();
-        }
-        
-        function stopDrawing(e) {
-            if (!isDrawing || currentTool === 'select') return;
-            
+        }        function stopDrawing(e) {
+            if (!isDrawing) return;
             const pos = getMousePos(e);
             const worldPos = getWorldCoords(pos.x, pos.y);
-            
-            // Create the object in world coordinates
-            const obj = {
-                type: currentTool,
-                startX: startX,
-                startY: startY,
-                endX: worldPos.x,
-                endY: worldPos.y,
-                id: Date.now()
-            };
-            
-            objects.push(obj);
+
+            // FIXED: All objects draw FLAT on the GRID PLANE (XZ plane, Y=0)
+            // Grid is on XZ plane, so objects should use X and Z coordinates with Y=0
+            if (currentTool === 'line') {
+                objects.push({
+                    type: 'line',
+                    startX: startX, startY: 0, startZ: startY,  // Map Y to Z for grid plane
+                    endX: worldPos.x, endY: 0, endZ: worldPos.y  // Map Y to Z for grid plane
+                });
+            } else if (currentTool === 'rectangle') {
+                objects.push({
+                    type: 'rectangle',
+                    startX: startX, startY: 0, startZ: startY,  // Map Y to Z for grid plane
+                    endX: worldPos.x, endY: 0, endZ: worldPos.y  // Map Y to Z for grid plane
+                });
+            } else if (currentTool === 'circle') {
+                const radius = Math.sqrt(Math.pow(worldPos.x - startX, 2) + Math.pow(worldPos.y - startY, 2));
+                objects.push({
+                    type: 'circle',
+                    centerX: startX, centerY: 0, centerZ: startY,  // Map Y to Z for grid plane
+                    radius: radius
+                });
+            }
+
             isDrawing = false;
-            
-            redrawCanvas();
             updateObjectCount();
-        }          function redrawCanvas() {
-            // Always hide overlays for Master before drawing
-            hideAllOverlays();
-            // Clear canvas with a subtle background
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Add a very subtle background to help grid visibility
-            ctx.fillStyle = '#FAFAFA';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Save context state
-            ctx.save();            // Apply camera transformations
-            applyCameraTransform();
-            
-            // Draw grid FIRST
-            if (showGrid) {
-                drawGrid();
-            }
-            
-            // Draw all objects AFTER grid
-            if (camera.mode === 'sketch') {
-                // 2D sketch mode - use traditional 2D drawing
-                objects.forEach(obj => {
-                    ctx.strokeStyle = obj === selectedObject ? '#FFD700' : '#333';
-                    ctx.lineWidth = (obj === selectedObject ? 3 : 2) / camera.zoom;
-                    ctx.beginPath();
-                    
-                    switch(obj.type) {
-                        case 'line':
-                            ctx.moveTo(obj.startX, obj.startY);
-                            ctx.lineTo(obj.endX, obj.endY);
-                            break;
-                        case 'rectangle':
-                            ctx.rect(obj.startX, obj.startY, obj.endX - obj.startX, obj.endY - obj.startY);
-                            break;
-                        case 'circle':
-                            const radius = Math.sqrt(Math.pow(obj.endX - obj.startX, 2) + Math.pow(obj.endY - obj.startY, 2));
-                            ctx.arc(obj.startX, obj.startY, radius, 0, 2 * Math.PI);
-                            break;
-                    }
-                    ctx.stroke();
-                });            } else {
-                // 3D modeling mode - use 3D projection
-                console.log('📐 DRAWING IN 3D MODE');
-                draw3DObjects();
-                
-                // Draw a simple test point to verify 3D rendering is working
-                const testPoint = project3D(0, 0, 0);
-                if (testPoint) {
-                    ctx.save();
-                    ctx.fillStyle = '#FF00FF';
-                    ctx.beginPath();
-                    ctx.arc(testPoint.x, testPoint.y, 10, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.restore();
-                    console.log('🔴 Test point drawn at origin:', testPoint);
-                } else {
-                    console.log('❌ Test point at origin not visible');
-                }
-            }
-              // Restore context state
-            ctx.restore();
-            
-            // Hide overlays on redraw to ensure UI is interactive
-            const loading = document.getElementById('loadingMessage');
-            if (loading) loading.style.display = 'none';
-            const error = document.getElementById('errorDisplay');
-            if (error) error.style.display = 'none';
-            const haze = document.getElementById('overlayHaze');
-            if (haze) haze.style.display = 'none';
+            redrawCanvas();
         }
-        
-        function draw3DObjects() {
-            console.log('🔥 DRAWING 3D OBJECTS - Count:', objects.length);
-            // Convert 2D objects to 3D representations and draw them - MUCH BIGGER
-            objects.forEach(obj => {
-                ctx.strokeStyle = obj === selectedObject ? '#FFD700' : '#000000'; // BLACK for better visibility
-                ctx.lineWidth = obj === selectedObject ? 4 : 3; // THICKER lines
-                
-                console.log('Drawing 3D object:', obj.type, 'at', obj.startX, obj.startY);
-                
-                switch(obj.type) {
-                    case 'line':
-                        draw3DLine(obj);
-                        break;
-                    case 'rectangle':
-                        draw3DRectangle(obj);
-                        break;
-                    case 'circle':
-                        draw3DCircle(obj);
-                        break;
+
+        function setTool(tool) {
+            currentTool = tool;
+
+            document.querySelectorAll('.button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            const toolButtons = {
+                'select': '[S] Select',
+                'line': '[L] Line',
+                'rectangle': '[R] Rectangle',
+                'circle': '[C] Circle'
+            };
+
+            document.querySelectorAll('.button').forEach(btn => {
+                if (btn.textContent.includes(toolButtons[tool])) {
+                    btn.classList.add('active');
                 }
             });
-              // Draw 3D coordinate axes for reference
-            console.log('🎯 DRAWING 3D AXES');
-            draw3DAxes();
-        }
-        
-        function draw3DLine(obj) {
-            // Draw line as flat 2D line lying on the XZ plane (Y=0)
-            const start = project3D(obj.startX, 0, obj.startY);
-            const end = project3D(obj.endX, 0, obj.endY);
-            
-            if (start && end) {
-                ctx.beginPath();
-                ctx.moveTo(start.x, start.y);
-                ctx.lineTo(end.x, end.y);
-                ctx.stroke();
-            }
-        }
-        
-        function draw3DRectangle(obj) {
-            // Draw rectangle as flat 2D rectangle lying on the XZ plane (Y=0)
-            const corners = [
-                project3D(obj.startX, 0, obj.startY),
-                project3D(obj.endX, 0, obj.startY),
-                project3D(obj.endX, 0, obj.endY),
-                project3D(obj.startX, 0, obj.endY)
-            ];
-            
-            // Check if all corners are visible
-            const validCorners = corners.filter(c => c !== null);
-            if (validCorners.length === 4) {
-                ctx.beginPath();
-                ctx.moveTo(validCorners[0].x, validCorners[0].y);
-                ctx.lineTo(validCorners[1].x, validCorners[1].y);
-                ctx.lineTo(validCorners[2].x, validCorners[2].y);
-                ctx.lineTo(validCorners[3].x, validCorners[3].y);
-                ctx.closePath();
-                ctx.stroke();
-            }
-        }
-        
-        function draw3DCircle(obj) {
-            // Draw circle as flat 2D circle lying on the XZ plane (Y=0)
-            const radius = Math.sqrt(Math.pow(obj.endX - obj.startX, 2) + Math.pow(obj.endY - obj.startY, 2));
-            const segments = 32; // More segments for smoother circle
-            
-            const points = [];
-            for (let i = 0; i <= segments; i++) {
-                const angle = (i / segments) * 2 * Math.PI;
-                const x = obj.startX + Math.cos(angle) * radius;
-                const z = obj.startY + Math.sin(angle) * radius;
-                points.push(project3D(x, 0, z));
-            }
-            
-            // Draw the circle
-            const validPoints = points.filter(p => p !== null);
-            if (validPoints.length > 3) {
-                ctx.beginPath();
-                ctx.moveTo(validPoints[0].x, validPoints[0].y);
-                for (let i = 1; i < validPoints.length; i++) {
-                    ctx.lineTo(validPoints[i].x, validPoints[i].y);
-                }
-                ctx.closePath();
-                ctx.stroke();
-            }
-        }
-          function draw3DAxes() {
-            // Draw X, Y, Z axes for reference in 3D mode
-            const origin = project3D(0, 0, 0);
-            const xAxis = project3D(100, 0, 0);
-            const yAxis = project3D(0, 100, 0);
-            const zAxis = project3D(0, 0, 100);
-            
-            console.log('🔧 3D Axes projection:', {origin, xAxis, yAxis, zAxis});
-            
-            if (origin && xAxis && yAxis && zAxis) {
-                const originalLineWidth = ctx.lineWidth;
-                ctx.lineWidth = 2;
-                
-                // X-axis (red)
-                ctx.strokeStyle = '#FF0000';
-                ctx.beginPath();
-                ctx.moveTo(origin.x, origin.y);
-                ctx.lineTo(xAxis.x, xAxis.y);
-                ctx.stroke();
-                
-                // Y-axis (green)
-                ctx.strokeStyle = '#00FF00';
-                ctx.beginPath();
-                ctx.moveTo(origin.x, origin.y);
-                ctx.lineTo(yAxis.x, yAxis.y);
-                ctx.stroke();
-                
-                // Z-axis (blue)
-                ctx.strokeStyle = '#0000FF';
-                ctx.beginPath();
-                ctx.moveTo(origin.x, origin.y);
-                ctx.lineTo(zAxis.x, zAxis.y);
-                ctx.stroke();
-                ctx.lineWidth = originalLineWidth;
-                
-                console.log('✅ 3D Axes drawn successfully');
-            } else {
-                console.log('❌ 3D Axes projection failed - some points behind camera');
-            }
-        }
-        
-        function applyCameraTransform() {
-            if (camera.mode === 'sketch') {
-                // 2D orthographic mode - use simple 2D transforms
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.scale(camera.zoom, camera.zoom);
-                ctx.translate(-camera.x, -camera.y);            } else {
-                // 3D perspective mode - NO TRANSFORMS
-                // The project3D function already includes canvas centering in its coordinates
-                // Any transform here will cause double-offset
-            }
-        }        // 3D Perspective projection functions        
-        function project3D(x, y, z) {
-            // Translate to camera space
-            const dx = x - camera.position.x;
-            const dy = y - camera.position.y;
-            const dz = z - camera.position.z;
-            
-            // Apply camera rotation
-            const cos_pitch = Math.cos(camera.rotation.x);
-            const sin_pitch = Math.sin(camera.rotation.x);
-            const cos_yaw = Math.cos(camera.rotation.y);
-            const sin_yaw = Math.sin(camera.rotation.y);
-            
-            // Rotate around Y-axis (yaw)
-            const x1 = dx * cos_yaw - dz * sin_yaw;
-            const z1 = dx * sin_yaw + dz * cos_yaw;
-            
-            // Rotate around X-axis (pitch)
-            const y2 = dy * cos_pitch - z1 * sin_pitch;
-            const z2 = dy * sin_pitch + z1 * cos_pitch;
-            
-            // REMOVED ALL CLIPPING - Allow zooming in on anything!
-            // Only reject points that are truly behind the camera (negative Z)
-            if (z2 <= 0.001) {
-                return null; // Only reject if truly behind camera
-            }
-            
-            // Calculate projection without any artificial limits
-            const fovScale = (canvas.height / 2) / Math.tan((camera.fov * Math.PI / 180) / 2);
-            const screenX = (x1 * fovScale) / z2;
-            const screenY = (y2 * fovScale) / z2;
-            
-            // REMOVED SCREEN BOUNDS CHECK - Allow any projection to be visible
-            const result = { 
-                x: screenX + canvas.width / 2, 
-                y: -screenY + canvas.height / 2, 
-                depth: z2 
-            };
-            
-            return result;
+
+            updateModeDisplay();
         }
 
-        // FPS-style camera movement
-        function updateCameraPosition(deltaTime) {
-            if (camera.mode !== 'modeling') return;
-            
-            const speed = camera.speed * deltaTime;
-            
-            // Calculate forward, right, and up vectors
-            const cos_pitch = Math.cos(camera.rotation.x);
-            const sin_pitch = Math.sin(camera.rotation.x);
-            const cos_yaw = Math.cos(camera.rotation.y);
-            const sin_yaw = Math.sin(camera.rotation.y);
-            
-            const forward = {
-                x: sin_yaw * cos_pitch,
-                y: -sin_pitch,
-                z: cos_yaw * cos_pitch
-            };
-            
-            const right = {
-                x: cos_yaw,
-                y: 0,
-                z: -sin_yaw
-            };
-            
-            const up = {
-                x: sin_yaw * sin_pitch,
-                y: cos_pitch,
-                z: cos_yaw * sin_pitch
-            };
-            
-            // Apply movement based on pressed keys
-            if (keys['KeyW'] || keys['ArrowUp']) {
-                camera.position.x += forward.x * speed;
-                camera.position.y += forward.y * speed;
-                camera.position.z += forward.z * speed;
-            }
-            if (keys['KeyS'] || keys['ArrowDown']) {
-                camera.position.x -= forward.x * speed;
-                camera.position.y -= forward.y * speed;
-                camera.position.z -= forward.z * speed;
-            }
-            if (keys['KeyA'] || keys['ArrowLeft']) {
-                camera.position.x -= right.x * speed;
-                camera.position.z -= right.z * speed;
-            }
-            if (keys['KeyD'] || keys['ArrowRight']) {
-                camera.position.x += right.x * speed;
-                camera.position.z += right.z * speed;
-            }
-            if (keys['KeyQ']) {
-                camera.position.y += speed; // Move up
-            }            if (keys['KeyE']) {
-                camera.position.y -= speed; // Move down
-            }
-        }        function drawGrid() {
-            // Always draw grid if showGrid is true, in both modes
-            if (!showGrid) return;
-            if (camera.mode === 'sketch') {
-                drawGrid2D();
-            } else {
-                drawGrid3D();
-            }
-        }        function drawGrid2D() {
-            // MORE grid coverage - same size squares, just many more of them!
-            const minorGridSize = 20; // Back to normal size squares
-            const majorGridSize = minorGridSize * 10; // Every 10th line is major
-            
-            // Calculate grid bounds based on current camera view
-            const viewBounds = {
-                left: -canvas.width / 2 / camera.zoom + camera.x,
-                right: canvas.width / 2 / camera.zoom + camera.x,
-                top: -canvas.height / 2 / camera.zoom + camera.y,
-                bottom: canvas.height / 2 / camera.zoom + camera.y
-            };
-            
-            // Extend bounds slightly to ensure complete coverage
-            const padding = Math.max(minorGridSize, majorGridSize);
-            viewBounds.left -= padding;
-            viewBounds.right += padding;
-            viewBounds.top -= padding;
-            viewBounds.bottom += padding;            // Draw minor grid lines first
-            ctx.strokeStyle = '#CCCCCC';
-            ctx.lineWidth = 1 / camera.zoom;
-            
-            // Minor vertical lines
-            const startX = Math.floor(viewBounds.left / minorGridSize) * minorGridSize;
-            const endX = Math.ceil(viewBounds.right / minorGridSize) * minorGridSize;
-            
-            for (let x = startX; x <= endX; x += minorGridSize) {
-                if (x % majorGridSize !== 0) { // Skip positions where major lines will be
-                    ctx.beginPath();
-                    ctx.moveTo(x, viewBounds.top);
-                    ctx.lineTo(x, viewBounds.bottom);
-                    ctx.stroke();
-                }
-            }
-            
-            // Minor horizontal lines
-            const startY = Math.floor(viewBounds.top / minorGridSize) * minorGridSize;
-            const endY = Math.ceil(viewBounds.bottom / minorGridSize) * minorGridSize;
-            
-            for (let y = startY; y <= endY; y += minorGridSize) {
-                if (y % majorGridSize !== 0) { // Skip positions where major lines will be
-                    ctx.beginPath();
-                    ctx.moveTo(viewBounds.left, y);
-                    ctx.lineTo(viewBounds.right, y);
-                    ctx.stroke();
-                }
-            }              // Draw major grid lines
-            ctx.strokeStyle = '#D0D0D0';
-            ctx.lineWidth = 0.8 / camera.zoom;
-            
-            // Major vertical lines
-            const majorStartX = Math.floor(viewBounds.left / majorGridSize) * majorGridSize;
-            const majorEndX = Math.ceil(viewBounds.right / majorGridSize) * majorGridSize;            
-            for (let x = majorStartX; x <= majorEndX; x += majorGridSize) {
-                ctx.beginPath();
-                ctx.moveTo(x, viewBounds.top);
-                ctx.lineTo(x, viewBounds.bottom);
-                ctx.stroke();
-            }
-            
-            // Major horizontal lines
-            const majorStartY = Math.floor(viewBounds.top / majorGridSize) * majorGridSize;
-            const majorEndY = Math.ceil(viewBounds.bottom / majorGridSize) * majorGridSize;
-            
-            for (let y = majorStartY; y <= majorEndY; y += majorGridSize) {
-                ctx.beginPath();
-                ctx.moveTo(viewBounds.left, y);                ctx.lineTo(viewBounds.right, y);
-                ctx.stroke();
-            }
-        }        // Fixed line drawing function - matches project3D transformation exactly
-        function drawClippedLine3D(x1, y1, z1, x2, y2, z2) {
-            // Use the same transformation as project3D for consistency
-            const cos_pitch = Math.cos(camera.rotation.x);
-            const sin_pitch = Math.sin(camera.rotation.x);
-            const cos_yaw = Math.cos(camera.rotation.y);
-            const sin_yaw = Math.sin(camera.rotation.y);
-            
-            // Transform point 1 - EXACTLY like project3D
-            let dx1 = x1 - camera.position.x;
-            let dy1 = y1 - camera.position.y;
-            let dz1 = z1 - camera.position.z;
-            
-            // Rotate around Y-axis (yaw) first
-            let x1_temp = dx1 * cos_yaw - dz1 * sin_yaw;
-            let z1_temp = dx1 * sin_yaw + dz1 * cos_yaw;
-            
-            // Then rotate around X-axis (pitch)
-            let y1_cam = dy1 * cos_pitch - z1_temp * sin_pitch;
-            let z1_cam = dy1 * sin_pitch + z1_temp * cos_pitch;
-            let x1_cam = x1_temp;
-            
-            // Transform point 2 - EXACTLY like project3D
-            let dx2 = x2 - camera.position.x;
-            let dy2 = y2 - camera.position.y;
-            let dz2 = z2 - camera.position.z;
-            
-            // Rotate around Y-axis (yaw) first
-            let x2_temp = dx2 * cos_yaw - dz2 * sin_yaw;
-            let z2_temp = dx2 * sin_yaw + dz2 * cos_yaw;
-            
-            // Then rotate around X-axis (pitch)
-            let y2_cam = dy2 * cos_pitch - z2_temp * sin_pitch;
-            let z2_cam = dy2 * sin_pitch + z2_temp * cos_pitch;
-            let x2_cam = x2_temp;
-            
-            // Only reject if truly behind camera (same as project3D)
-            if (z1_cam <= 0.001 && z2_cam <= 0.001) {
-                return false;
-            }
-            
-            // Simple clipping against camera plane
-            if (z1_cam <= 0.001 || z2_cam <= 0.001) {
-                // Calculate intersection with near plane (z = 0.001)
-                if (z1_cam <= 0.001) {
-                    // Point 1 is behind, clip it
-                    const t = (0.001 - z1_cam) / (z2_cam - z1_cam);
-                    x1_cam = x1_cam + t * (x2_cam - x1_cam);
-                    y1_cam = y1_cam + t * (y2_cam - y1_cam);
-                    z1_cam = 0.001;
-                }
-                if (z2_cam <= 0.001) {
-                    // Point 2 is behind, clip it
-                    const t = (0.001 - z2_cam) / (z1_cam - z2_cam);
-                    x2_cam = x2_cam + t * (x1_cam - x2_cam);
-                    y2_cam = y2_cam + t * (y1_cam - y2_cam);
-                    z2_cam = 0.001;
-                }
-            }
-            
-            // Project to screen - EXACTLY like project3D
-            const fovScale = (canvas.height / 2) / Math.tan((camera.fov * Math.PI / 180) / 2);
-            
-            const screenX1 = (x1_cam * fovScale) / z1_cam + canvas.width / 2;
-            const screenY1 = -(y1_cam * fovScale) / z1_cam + canvas.height / 2;
-            const screenX2 = (x2_cam * fovScale) / z2_cam + canvas.width / 2;
-            const screenY2 = -(y2_cam * fovScale) / z2_cam + canvas.height / 2;
-              // Draw the line
-            ctx.beginPath();
-            ctx.moveTo(screenX1, screenY1);
-            ctx.lineTo(screenX2, screenY2);
-            ctx.stroke();
-            return true;
-        }        function drawGrid3D() {
-            // SMART VISIBLE-ONLY GRID - Only draws grid lines that are actually visible
-            const cameraDistance = Math.sqrt(
-                camera.position.x * camera.position.x + 
-                camera.position.y * camera.position.y + 
-                camera.position.z * camera.position.z
-            );
-            
-            // Adaptive grid size based on camera distance
-            let gridSize = 100;
-            if (cameraDistance > 2000) gridSize = 200;
-            if (cameraDistance > 5000) gridSize = 500;
-            if (cameraDistance > 10000) gridSize = 1000;
-            
-            // Much smaller, performance-focused extent
-            const maxExtent = Math.min(1000, cameraDistance * 0.8);
-            
-            ctx.strokeStyle = '#DDDDDD';
-            ctx.lineWidth = 1;
-            
-            // CENTER GRID AROUND CAMERA VIEW, not position
-            const centerX = Math.round(camera.position.x / gridSize) * gridSize;
-            const centerZ = Math.round(camera.position.z / gridSize) * gridSize;
-            
-            const minX = centerX - maxExtent;
-            const maxX = centerX + maxExtent;
-            const minZ = centerZ - maxExtent;
-            const maxZ = centerZ + maxExtent;
-            
-            // HORIZONTAL GRID - Just the main XZ plane for now
-            ctx.strokeStyle = '#DDDDDD';
-            
-            // X-direction lines (much fewer)
-            for (let z = minZ; z <= maxZ; z += gridSize * 2) { // Every other line
-                drawClippedLine3D(minX, 0, z, maxX, 0, z);
-            }
-            
-            // Z-direction lines (much fewer)
-            for (let x = minX; x <= maxX; x += gridSize * 2) { // Every other line
-                drawClippedLine3D(x, 0, minZ, x, 0, maxZ);
-            }
-            
-            // Add a few horizontal planes above and below
-            ctx.strokeStyle = '#EEEEEE'; // Lighter for additional planes
-            for (let y of [-gridSize, gridSize]) {
-                // Fewer lines on additional planes
-                for (let z = minZ; z <= maxZ; z += gridSize * 4) {
-                    drawClippedLine3D(minX, y, z, maxX, y, z);
-                }
-                for (let x = minX; x <= maxX; x += gridSize * 4) {
-                    drawClippedLine3D(x, y, minZ, x, y, maxZ);
-                }
-            }
-            
-            // Major coordinate axes for reference
-            drawCoordinateAxes();
-        }
-        
-        // New screen-space grid line function that avoids clipping issues
-        function drawScreenSpaceGridLine(x1, y1, z1, x2, y2, z2) {
-            // Sample multiple points along the line to ensure visibility
-            const numSamples = 20;
-            const points = [];
-            
-            for (let i = 0; i <= numSamples; i++) {
-                const t = i / numSamples;
-                const x = x1 + t * (x2 - x1);
-                const y = y1 + t * (y2 - y1);
-                const z = z1 + t * (z2 - z1);
-                
-                const proj = project3D(x, y, z);
-                if (proj && proj.x >= -100 && proj.x <= canvas.width + 100 && 
-                    proj.y >= -100 && proj.y <= canvas.height + 100) {
-                    points.push(proj);
-                }
-            }
-            
-            // Draw connected line segments between visible points
-            if (points.length >= 2) {
-                ctx.beginPath();
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    ctx.lineTo(points[i].x, points[i].y);
-                }
-                ctx.stroke();
-            }
-        }
-          function drawCoordinateAxes() {
-            // Draw coordinate axes - FIXED LENGTH for performance
-            ctx.lineWidth = 3;
-            
-            // X-axis (red)
-            ctx.strokeStyle = '#FF0000';
-            const xStart = project3D(-1000, 0, 0);
-            const xEnd = project3D(1000, 0, 0);
-            if (xStart && xEnd && xStart.depth > 0 && xEnd.depth > 0) {
-                ctx.beginPath();
-                ctx.moveTo(xStart.x, xStart.y);
-                ctx.lineTo(xEnd.x, xEnd.y);
-                ctx.stroke();
-            }
-            
-            // Z-axis (blue)
-            ctx.strokeStyle = '#0000FF';
-            const zStart = project3D(0, 0, -1000);
-            const zEnd = project3D(0, 0, 1000);
-            if (zStart && zEnd && zStart.depth > 0 && zEnd.depth > 0) {
-                ctx.beginPath();
-                ctx.moveTo(zStart.x, zStart.y);
-                ctx.lineTo(zEnd.x, zEnd.y);
-                ctx.stroke();
-            }
-            
-            // Y-axis (green)
-            ctx.strokeStyle = '#00FF00';
-            const yStart = project3D(0, -500, 0);
-            const yEnd = project3D(0, 500, 0);
-            if (yStart && yEnd && yStart.depth > 0 && yEnd.depth > 0) {
-                ctx.beginPath();
-                ctx.moveTo(yStart.x, yStart.y);
-                ctx.lineTo(yEnd.x, yEnd.y);
-                ctx.stroke();
-            }
-            
-            // Origin point
-            const origin = project3D(0, 0, 0);
-            if (origin && origin.depth > 0) {
-                ctx.fillStyle = '#FF00FF';
-                ctx.beginPath();
-                ctx.arc(origin.x, origin.y, 5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-        
-        function clearCanvas() {
-            objects = [];
-            selectedObject = null;
-            redrawCanvas();
-            updateObjectCount();
-        }
-          function updateObjectCount() {
-            const count = objects.length;
-            const selectedText = selectedObject ? ` (1 selected)` : '';
-            document.getElementById('objectCount').textContent = count + selectedText;
-        }
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Prevent default behavior for our shortcuts
-            if (e.ctrlKey || e.key === 'Escape' || e.key === 'Delete' || e.key === 'Home') {
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    isDrawing = false;
-                    selectedObject = null;
-                    redrawCanvas();
-                } else if (e.key === 'Delete' && selectedObject) {
-                    e.preventDefault();
-                    objects = objects.filter(obj => obj !== selectedObject);
-                    selectedObject = null;
-                    redrawCanvas();
-                    updateObjectCount();
-                } else if (e.key === 'Home' || (e.ctrlKey && e.key === '0')) {
-                    e.preventDefault();
-                    resetCamera();
-                } else if (e.ctrlKey && e.key === 'z') {
-                    e.preventDefault();
-                    // Undo functionality could be added here
-                } else if (e.ctrlKey && e.key === 'a') {
-                    e.preventDefault();
-                    // Select all functionality could be added here
-                }
-            }
-            // Tool shortcuts
-            if (!e.ctrlKey && !e.altKey) {
-                switch(e.key.toLowerCase()) {
-                    case 's':
-                        e.preventDefault();
-                        setTool('select');
-                        break;
-                    case 'l':
-                        e.preventDefault();
-                        setTool('line');
-                        break;
-                    case 'r':
-                        e.preventDefault();
-                        setTool('rectangle');
-                        break;
-                    case 'c':
-                        e.preventDefault();
-                        setTool('circle');
-                        break;
-                    case 'g':
-                        e.preventDefault();
-                        toggleGrid();
-                        break;
-                }
-            }
-        });
-
-        // Grid toggle functionality
         function toggleGrid() {
             showGrid = !showGrid;
             redrawCanvas();
         }
 
-        // Object selection functionality
-        function selectObjectAt(x, y) {
-            const worldPos = getWorldCoords(x, y);
-            const tolerance = 10 / camera.zoom; // Selection tolerance that scales with zoom
-            
-            // Check objects in reverse order (last drawn = topmost)
-            for (let i = objects.length - 1; i >= 0; i--) {
-                const obj = objects[i];
-                if (isPointNearObject(worldPos.x, worldPos.y, obj, tolerance)) {
-                    selectedObject = obj;
-                    redrawCanvas();
-                    return true;
-                }
-            }
-            
-            // No object selected
-            selectedObject = null;
-            redrawCanvas();
-            return false;
-        }
-        
-        function isPointNearObject(x, y, obj, tolerance) {
-            switch (obj.type) {
-                case 'line':
-                    return distanceToLine(x, y, obj.startX, obj.startY, obj.endX, obj.endY) <= tolerance;
-                case 'rectangle':
-                    return isPointNearRectangle(x, y, obj.startX, obj.startY, obj.endX, obj.endY, tolerance);
-                case 'circle':
-                    const centerX = obj.startX;
-                    const centerY = obj.startY;
-                    const radius = Math.sqrt(Math.pow(obj.endX - obj.startX, 2) + Math.pow(obj.endY - obj.startY, 2));
-                    const distanceToCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
-                    return Math.abs(distanceToCenter - radius) <= tolerance;
-            }
-            return false;
-        }
-        
-        function distanceToLine(px, py, x1, y1, x2, y2) {
-            const A = px - x1;
-            const B = py - y1;
-            const C = x2 - x1;
-            const D = y2 - y1;
-            
-            const dot = A * C + B * D;
-            const lenSq = C * C + D * D;
-            
-            if (lenSq === 0) return Math.sqrt(A * A + B * B);
-            
-            let param = dot / lenSq;
-            param = Math.max(0, Math.min(1, param));
-            
-            const xx = x1 + param * C;
-            const yy = y1 + param * D;
-            
-            const dx = px - xx;
-            const dy = py - yy;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-        
-        function isPointNearRectangle(x, y, x1, y1, x2, y2, tolerance) {
-            const minX = Math.min(x1, x2);
-            const maxX = Math.max(x1, x2);
-            const minY = Math.min(y1, y2);
-            const maxY = Math.max(y1, y2);
-            
-            // Check if point is near any of the four edges
-            return (
-                distanceToLine(x, y, minX, minY, maxX, minY) <= tolerance || // Top edge
-                distanceToLine(x, y, maxX, minY, maxX, maxY) <= tolerance || // Right edge
-                distanceToLine(x, y, maxX, maxY, minX, maxY) <= tolerance || // Bottom edge
-                distanceToLine(x, y, minX, maxY, minX, minY) <= tolerance    // Left edge
-            );
-        }
-          // Demo/Sample functionality
-        function addSampleObjects() {
-            // Clear existing objects
+        function clearCanvas() {
             objects = [];
             selectedObject = null;
-            
-            // Rectangle - MUCH BIGGER AND MORE VISIBLE
-            objects.push({
-                type: 'rectangle',
-                startX: -150,
-                startY: -100,
-                endX: 150,
-                endY: 100,
-                id: Date.now() + 1
-            });
-            
-            // Line - MUCH LONGER
-            objects.push({
-                type: 'line',
-                startX: -200,
-                startY: 150,
-                endX: 200,
-                endY: 150,
-                id: Date.now() + 2
-            });
-            
-            // Circle - MUCH BIGGER
-            objects.push({
-                type: 'circle',
-                startX: 0,
-                startY: -200,
-                endX: 100, // Radius = 100
-                endY: -200,
-                id: Date.now() + 3
-            });
-            
-            redrawCanvas();
             updateObjectCount();
+            redrawCanvas();
         }
-        
-        // Utility to forcibly hide overlays and hazes
-        function hideAllOverlays() {
-            const ids = ['loadingMessage', 'errorDisplay', 'overlayHaze'];
-            ids.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.style.display = 'none';
-                    el.style.visibility = 'hidden';
-                    el.style.pointerEvents = 'none';
-                    // Remove from DOM if not needed
-                    if (id === 'overlayHaze') {
-                        el.parentNode && el.parentNode.removeChild(el);
+
+        function selectObjectAt(x, y) {
+            selectedObject = null;
+            redrawCanvas();
+        }
+
+        function updateObjectCount() {
+            document.getElementById('objectCount').textContent = objects.length;
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FAFAFA';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            applyCameraTransform();
+            drawGrid();
+            drawObjects();
+            ctx.restore();
+
+            updateModeDisplay();
+        }        function drawObjects() {
+            objects.forEach(obj => {
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                if (camera.mode === 'modeling') {
+                    // FIXED: Draw in 3D using correct coordinate mapping - objects FLAT on XZ grid plane
+                    if (obj.type === 'line') {
+                        const start = project3D(obj.startX, obj.startY || 0, obj.startZ || 0);
+                        const end = project3D(obj.endX, obj.endY || 0, obj.endZ || 0);
+                        if (start && end) {
+                            ctx.moveTo(start.x, start.y);
+                            ctx.lineTo(end.x, end.y);
+                        }
+                    } else if (obj.type === 'rectangle') {
+                        const y = obj.startY || 0;  // All corners on same Y plane (grid level)
+                        const corners = [
+                            project3D(obj.startX, y, obj.startZ || 0),
+                            project3D(obj.endX, y, obj.startZ || 0),
+                            project3D(obj.endX, y, obj.endZ || 0),
+                            project3D(obj.startX, y, obj.endZ || 0)
+                        ];
+                        if (corners.every(c => c !== null)) {
+                            ctx.moveTo(corners[0].x, corners[0].y);
+                            for (let i = 1; i < corners.length; i++) {
+                                ctx.lineTo(corners[i].x, corners[i].y);
+                            }
+                            ctx.closePath();
+                        }                    } else if (obj.type === 'circle') {
+                        // FIXED: Draw circle as proper 3D polygon on grid plane (no billboarding)
+                        const segments = 32; // More segments for smooth final circles
+                        const points = [];
+                        
+                        // Generate circle points on the XZ plane (Y=0)
+                        for (let i = 0; i <= segments; i++) {
+                            const angle = (i / segments) * 2 * Math.PI;
+                            const x = obj.centerX + Math.cos(angle) * obj.radius;
+                            const z = obj.centerZ + Math.sin(angle) * obj.radius;
+                            const point = project3D(x, obj.centerY || 0, z);
+                            if (point) points.push(point);
+                        }
+                        
+                        // Draw circle as connected line segments (not billboard arc)
+                        if (points.length > 3) {
+                            ctx.moveTo(points[0].x, points[0].y);
+                            for (let i = 1; i < points.length; i++) {
+                                ctx.lineTo(points[i].x, points[i].y);
+                            }
+                            ctx.closePath();
+                        }
+                    }
+                } else {
+                    // 2D mode - draw using X,Z coordinates but map to screen X,Y
+                    if (obj.type === 'line') {
+                        // For 2D mode, use startX,startZ as screen x,y
+                        const startScreenX = obj.startX;
+                        const startScreenY = obj.startZ || obj.startY || 0;
+                        const endScreenX = obj.endX;
+                        const endScreenY = obj.endZ || obj.endY || 0;
+                        ctx.moveTo(startScreenX, startScreenY);
+                        ctx.lineTo(endScreenX, endScreenY);
+                    } else if (obj.type === 'rectangle') {
+                        const startScreenX = obj.startX;
+                        const startScreenY = obj.startZ || obj.startY || 0;
+                        const endScreenX = obj.endX;
+                        const endScreenY = obj.endZ || obj.endY || 0;
+                        const width = endScreenX - startScreenX;
+                        const height = endScreenY - startScreenY;
+                        ctx.rect(startScreenX, startScreenY, width, height);
+                    } else if (obj.type === 'circle') {
+                        const centerScreenX = obj.centerX;
+                        const centerScreenY = obj.centerZ || obj.centerY || 0;
+                        ctx.arc(centerScreenX, centerScreenY, obj.radius, 0, 2 * Math.PI);
                     }
                 }
+
+                ctx.stroke();
             });
         }
+
+        updateModeDisplay();
+        updateObjectCount();
     </script>
 </body>
 </html>
