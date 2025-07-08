@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fidelco Interactive Exam</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+      color: #333;
+      font-size: 20px;
+    }
+    h1 { font-size: 32px; color: #003366; text-align: center; }
+    .question { margin: 25px 0; padding: 20px; background: #fff; border-radius: 10px; border: 1px solid #ccc; }
+    .choices { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
+    .choices button {
+      font-size: 18px; padding: 12px; border: none; border-radius: 8px; background: #eee;
+      cursor: pointer; transition: background 0.3s;
+    }
+    .choices button.correct { background: #c4f0c5 !important; }
+    .choices button.incorrect { background: #f7c0c0 !important; }
+    .timer { font-size: 22px; color: #a00; margin-bottom: 20px; text-align: center; }
+    #drag-drop-area { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
+    .drag-item, .drop-zone {
+      padding: 14px; border: 2px dashed #888; border-radius: 10px;
+      text-align: center; background: #fff; font-size: 18px; margin-bottom: 10px;
+      touch-action: none;
+    }
+    .drop-zone.correct { background: #d4f8d4; }
+  </style>
+</head>
+<body>
+  <h1>Fidelco Interactive Study Quiz</h1>
+  <div class="timer">Time left: <span id="time">180</span> seconds</div>
+
+  <div class="question">
+    <strong>1. What is Fidelco known for?</strong>
+    <div class="choices">
+      <button type="button" data-correct="false">Making hiking gear</button>
+      <button type="button" data-correct="true">Training guide dogs for the blind</button>
+      <button type="button" data-correct="false">Selling dog food</button>
+    </div>
+  </div>
+
+  <div class="question">
+    <strong>2. Which dog breed does Fidelco use?</strong>
+    <div class="choices">
+      <button type="button" data-correct="false">Labrador Retriever</button>
+      <button type="button" data-correct="true">German Shepherd</button>
+      <button type="button" data-correct="false">Poodle</button>
+    </div>
+  </div>
+
+  <div class="question">
+    <strong>3. Match the term to its meaning (Tap or Drag and Drop)</strong>
+    <div id="drag-drop-area">
+      <div id="drag-items">
+        <div class="drag-item" draggable="true" id="apprentice">Apprentice</div>
+        <div class="drag-item" draggable="true" id="paralympics">Paralympics</div>
+        <div class="drag-item" draggable="true" id="veteran">Veteran</div>
+      </div>
+      <div>
+        <div class="drop-zone" data-match="apprentice">Learns a skill from an expert</div>
+        <div class="drop-zone" data-match="paralympics">Sport event for disabled athletes</div>
+        <div class="drop-zone" data-match="veteran">Someone who served in the military</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      let time = 180;
+      let timer = setInterval(() => {
+        time--;
+        document.getElementById('time').textContent = time;
+        if (time <= 0) {
+          clearInterval(timer);
+          alert("Time's up!");
+        }
+      }, 1000);
+
+      document.querySelectorAll('.choices button').forEach(button => {
+        button.addEventListener('click', function () {
+          const correct = this.getAttribute('data-correct') === 'true';
+          this.classList.add(correct ? 'correct' : 'incorrect');
+          const siblings = this.parentElement.querySelectorAll('button');
+          siblings.forEach(b => b.disabled = true);
+        });
+      });
+
+      const dragItems = document.querySelectorAll('.drag-item');
+      const dropZones = document.querySelectorAll('.drop-zone');
+
+      dragItems.forEach(item => {
+        item.addEventListener('dragstart', ev => {
+          ev.dataTransfer.setData("text", ev.target.id);
+        });
+        item.addEventListener('click', function () {
+          let selected = document.querySelector('.drag-item.selected');
+          if (selected && selected !== this) selected.classList.remove('selected');
+          this.classList.toggle('selected');
+        });
+      });
+
+      dropZones.forEach(zone => {
+        zone.addEventListener('dragover', ev => ev.preventDefault());
+        zone.addEventListener('drop', function (ev) {
+          ev.preventDefault();
+          let data = ev.dataTransfer.getData("text");
+          placeItem(document.getElementById(data), this);
+        });
+        zone.addEventListener('click', function () {
+          let selected = document.querySelector('.drag-item.selected');
+          if (selected) placeItem(selected, this);
+        });
+      });
+
+      function placeItem(item, zone) {
+        if (zone.dataset.match === item.id) {
+          zone.classList.add("correct");
+          zone.textContent = item.textContent;
+          item.remove();
+        } else {
+          alert("Oops! Try again.");
+        }
+      }
+    });
+  </script>
+</body>
+</html>
